@@ -539,7 +539,7 @@ export default function HomePage() {
 
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-100 font-sans min-h-screen">
+    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-100 font-sans min-h-screen lg:h-screen lg:overflow-hidden">
       {/* JSON-LD Structured Data for Search Engine Rich Cards */}
       <script
         type="application/ld+json"
@@ -557,7 +557,7 @@ export default function HomePage() {
         }}
       />
       {/* Top Main Navigation Header */}
-      <header className="h-16 border-b border-zinc-900 px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
+      <header className="h-16 border-b border-zinc-900 px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20 flex-shrink-0">
         <button
           onClick={() => window.location.reload()}
           className="group relative flex items-center space-x-3 focus:outline-none cursor-pointer text-left"
@@ -637,11 +637,11 @@ export default function HomePage() {
       </header>
 
       {/* Main Dual-Pane Section */}
-      <main ref={containerRef} className="flex-1 flex flex-col lg:flex-row p-6 gap-0 overflow-hidden max-w-full">
+      <main ref={containerRef} className="flex-1 flex flex-col lg:flex-row p-6 lg:pt-6 lg:pb-2 gap-0 overflow-hidden max-w-full">
 
         {/* Left Pane - Input Staging Editor Area */}
         <section
-          className="flex flex-col h-[calc(100vh-210px)] min-h-[300px]"
+          className="flex flex-col h-[450px] lg:h-[calc(100vh-135px)] min-h-[300px]"
           style={{ width: isDesktop ? `${leftWidth}%` : "100%" }}
         >
           <div className="flex items-center justify-between mb-2 px-1 select-none">
@@ -703,7 +703,7 @@ export default function HomePage() {
         {/* Resizable Divider Handle */}
         <div
           onMouseDown={handleMouseDown}
-          className="hidden lg:flex w-4 items-center justify-center cursor-col-resize hover:bg-cyan-500/5 select-none relative group transition-colors duration-150 h-[calc(100vh-210px)] min-h-[300px]"
+          className="hidden lg:flex w-4 items-center justify-center cursor-col-resize hover:bg-cyan-500/5 select-none relative group transition-colors duration-150 h-[calc(100vh-135px)] min-h-[300px]"
           role="separator"
           aria-label="Panel Splitter"
         >
@@ -718,7 +718,7 @@ export default function HomePage() {
           ref={rightPaneRef}
           className={`relative flex flex-col bg-zinc-950 transition-all ${isFullscreen
             ? "w-full h-full p-6"
-            : "h-[calc(100vh-210px)] min-h-[300px]"
+            : "h-[450px] lg:h-[calc(100vh-135px)] min-h-[300px]"
             }`}
           style={isFullscreen ? {} : { width: isDesktop ? `${100 - leftWidth}%` : "100%" }}
         >
@@ -1189,7 +1189,7 @@ export default function HomePage() {
         </div>
       )}
       {/* Subtle Animated Footer */}
-      <footer className="premium-footer w-full py-2 flex items-center justify-center text-[10px] font-mono text-zinc-500 select-none cursor-default">
+      <footer className="premium-footer w-full py-2 flex items-center justify-center text-[10px] font-mono text-zinc-500 select-none cursor-default flex-shrink-0 border-t border-zinc-900 bg-zinc-950">
         <span>{visitorTime}</span>
       </footer>
 
