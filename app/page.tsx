@@ -571,13 +571,6 @@ export default function HomePage() {
             </p>
           </div>
         </div>
-
-        {/* Database Status Pill */}
-        <div className="hidden sm:flex items-center space-x-2 text-[11px] font-mono px-3 py-1 rounded-full border border-zinc-800 bg-zinc-900/50 text-zinc-400">
-          <Database size={12} className={isSupabaseMocked ? "text-amber-500" : "text-emerald-500"} />
-          <span>{isSupabaseMocked ? "Local Dev Storage (Mock)" : "Connected"}</span>
-        </div>
-
         {/* Action Button Bar */}
         <div className="flex items-center space-x-2">
           <button
@@ -712,11 +705,10 @@ export default function HomePage() {
         {/* Right Pane - Output Viewer / Transformation Tab Area */}
         <section
           ref={rightPaneRef}
-          className={`relative flex flex-col bg-zinc-950 transition-all ${
-            isFullscreen 
-              ? "w-full h-full p-6" 
+          className={`relative flex flex-col bg-zinc-950 transition-all ${isFullscreen
+              ? "w-full h-full p-6"
               : "h-[calc(100vh-210px)] min-h-[300px]"
-          }`}
+            }`}
           style={isFullscreen ? {} : { width: isDesktop ? `${100 - leftWidth}%` : "100%" }}
         >
           {/* Tab Navigation */}
@@ -739,8 +731,8 @@ export default function HomePage() {
                   key={tab.id}
                   onClick={() => setViewMode(tab.id as ViewMode)}
                   className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium tracking-wide transition-all cursor-pointer flex-shrink-0 ${viewMode === tab.id
-                      ? "bg-zinc-800 text-cyan-400 font-semibold"
-                      : "text-zinc-400 hover:text-zinc-200"
+                    ? "bg-zinc-800 text-cyan-400 font-semibold"
+                    : "text-zinc-400 hover:text-zinc-200"
                     }`}
                 >
                   {tab.icon}
