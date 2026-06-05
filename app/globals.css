@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #09090b; /* Zinc 950 */
+  --foreground: #f4f4f5; /* Zinc 100 */
+  --card: #18181b;       /* Zinc 900 */
+  --border: #27272a;     /* Zinc 800 */
+  --accent: #06b6d4;     /* Cyan 500 */
+  --accent-hover: #0891b2; /* Cyan 600 */
+  --muted: #71717a;      /* Zinc 500 */
+  --muted-dark: #3f3f46; /* Zinc 700 */
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-muted: var(--muted);
+  --color-muted-dark: var(--muted-dark);
+  
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar styling for a premium look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #09090b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Monaco editor custom focus overlay override */
+.monaco-editor {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+/* Selection colors */
+::selection {
+  background-color: rgba(6, 182, 212, 0.2);
+  color: #ffffff;
+}
+
+/* Hide scrollbars for utility tabs container */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Subtle, animated focused footer layout */
+.premium-footer {
+  opacity: 0.22;
+  filter: blur(0.1px);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  border-top: 1px solid rgba(39, 39, 42, 0.15);
+}
+
+.premium-footer:hover {
+  opacity: 0.85;
+  filter: blur(0);
+  transform: translateY(-1px);
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
+  border-top: 1px solid rgba(6, 182, 212, 0.15);
 }
