@@ -558,19 +558,30 @@ export default function HomePage() {
       />
       {/* Top Main Navigation Header */}
       <header className="h-16 border-b border-zinc-900 px-6 flex items-center justify-between bg-zinc-950/80 backdrop-blur-md sticky top-0 z-20">
-        <div className="flex items-center space-x-3">
-          <div className="h-9 w-9 rounded-lg overflow-hidden flex items-center justify-center bg-zinc-900/50 border border-zinc-800/80 shadow-md">
-            <img src="/logo-green.png" alt="JSONObject.OnLine Logo" className="h-7 w-7 object-contain select-none" />
+        <button
+          onClick={() => window.location.reload()}
+          className="group relative flex items-center space-x-3 focus:outline-none cursor-pointer text-left"
+          aria-label="Reload application"
+        >
+          {/* Logo container with micro-animations */}
+          <div className="h-9 w-9 rounded-lg overflow-hidden flex items-center justify-center bg-zinc-900/50 border border-zinc-800/80 shadow-md transition-all duration-300 group-hover:scale-105 group-hover:border-cyan-500/40 group-hover:shadow-lg group-hover:shadow-cyan-500/10 group-active:scale-95">
+            <img 
+              src="/logo-green.png" 
+              alt="JSONObject.OnLine Logo" 
+              className="h-7 w-7 object-contain select-none transition-transform duration-500 ease-out group-hover:rotate-[15deg]" 
+            />
           </div>
+          {/* Title & Subtitle with micro-animations */}
           <div>
-            <h1 className="font-semibold text-base tracking-wide bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
+            <h1 className="font-semibold text-base tracking-wide bg-gradient-to-r from-zinc-100 to-zinc-400 group-hover:from-white group-hover:to-cyan-400 bg-clip-text text-transparent transition-all duration-300">
               JSONObject.OnLine
             </h1>
-            <p className="text-[10px] font-mono tracking-widest text-zinc-500">
+            <p className="text-[10px] font-mono tracking-widest text-zinc-500 group-hover:text-cyan-500/80 transition-colors duration-300">
               ENCRYPTED JSON SHARER
             </p>
           </div>
-        </div>
+
+        </button>
         {/* Action Button Bar */}
         <div className="flex items-center space-x-2">
           <button
