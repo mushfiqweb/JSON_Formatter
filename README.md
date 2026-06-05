@@ -1,6 +1,6 @@
-# JSONObject.OnLine — Secure Zero-Knowledge JSON Formatter & Developer Sandbox
+# JSONObject.OnLine — Secure JSON Formatter & Developer Sandbox
 
-JSONObject.OnLine is a high-performance, developer-focused, client-side zero-knowledge JSON formatting and transformation utility platform. It features deep formatting, syntax repair, and bidirectional format compilation alongside client-side cryptographic snippet sharing.
+JSONObject.OnLine is a high-performance, developer-focused, client-side JSON formatting and transformation utility platform. It features deep formatting, syntax repair, and bidirectional format compilation alongside client-side cryptographic snippet sharing.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -21,8 +21,8 @@ JSONObject.OnLine is a high-performance, developer-focused, client-side zero-kno
 
 ## 1. Architectural Workflows
 
-### 1.1 Zero-Knowledge Encryption Flow
-The snippet sharing feature guarantees absolute zero-knowledge security using client-side **AES-GCM-256** encryption. The private key is appended as a URL hash fragment (`#key=...`), which is never sent to the hosting server or stored in the database.
+### 1.1 Client-Side Encryption Flow
+The snippet sharing feature guarantees absolute security using client-side **AES-GCM-256** encryption. The private key is appended as a URL hash fragment (`#key=...`), which is never sent to the hosting server or stored in the database.
 
 ```mermaid
 sequenceDiagram
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS public.json_formatter_snippets (
 ### 6.3 Configuration
 Create a `.env` file in the root folder:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://xsomajhjyzywscovvbho.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
 ```
 
