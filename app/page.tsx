@@ -1190,12 +1190,12 @@ export default function HomePage() {
       )}
       {/* Subtle Animated Footer */}
       <footer className="premium-footer w-full py-2 flex items-center justify-center text-[10px] font-mono text-zinc-500 select-none cursor-default">
-        <span>{visitorTime} &nbsp;|&nbsp; Copyright @ </span>
+        <span>{visitorTime} &nbsp;|&nbsp; </span>
         <a
           href="https://mushfiqweb.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="ml-1 text-zinc-500 hover:text-cyan-400 hover:underline transition-all duration-300 font-semibold"
+          className="text-zinc-500 hover:text-cyan-400 hover:underline transition-all duration-300 font-semibold"
         >
           mushfiqweb.com
         </a>
