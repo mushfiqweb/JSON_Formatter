@@ -565,10 +565,10 @@ export default function HomePage() {
         >
           {/* Logo container with micro-animations */}
           <div className="h-9 w-9 rounded-lg overflow-hidden flex items-center justify-center bg-zinc-900/50 border border-zinc-800/80 shadow-md transition-all duration-300 group-hover:scale-105 group-hover:border-cyan-500/40 group-hover:shadow-lg group-hover:shadow-cyan-500/10 group-active:scale-95">
-            <img 
-              src="/logo-green.png" 
-              alt="JSONObject.OnLine Logo" 
-              className="h-7 w-7 object-contain select-none transition-transform duration-500 ease-out group-hover:rotate-[15deg]" 
+            <img
+              src="/logo-green.png"
+              alt="JSONObject.OnLine Logo"
+              className="h-7 w-7 object-contain select-none transition-transform duration-500 ease-out group-hover:rotate-[15deg]"
             />
           </div>
           {/* Title & Subtitle with micro-animations */}
@@ -717,8 +717,8 @@ export default function HomePage() {
         <section
           ref={rightPaneRef}
           className={`relative flex flex-col bg-zinc-950 transition-all ${isFullscreen
-              ? "w-full h-full p-6"
-              : "h-[calc(100vh-210px)] min-h-[300px]"
+            ? "w-full h-full p-6"
+            : "h-[calc(100vh-210px)] min-h-[300px]"
             }`}
           style={isFullscreen ? {} : { width: isDesktop ? `${100 - leftWidth}%` : "100%" }}
         >
@@ -800,7 +800,6 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-zinc-950/70 backdrop-blur-[1px] flex items-center justify-center z-10 select-none">
                 <div className="flex items-center space-x-3 bg-zinc-900 border border-zinc-800 px-4 py-2.5 rounded-lg shadow-xl shadow-black/40">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-500"></div>
-                  <span className="text-xs font-mono text-zinc-400">ANALYZING PAYLOAD...</span>
                 </div>
               </div>
             )}
