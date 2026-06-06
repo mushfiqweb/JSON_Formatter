@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
+import { useJSONStore } from "@/store/store";
 
 
 interface JSONTreeViewProps {
@@ -9,16 +10,24 @@ interface JSONTreeViewProps {
 }
 
 export default function JSONTreeView({ data }: JSONTreeViewProps) {
+  const editorFontSize = useJSONStore((state) => state.editorFontSize);
+
   if (data === null || data === undefined) {
     return (
-      <div className="flex items-center justify-center h-full text-zinc-500 font-mono text-sm">
+      <div 
+        className="flex items-center justify-center h-full text-zinc-500 font-mono"
+        style={{ fontSize: `${editorFontSize}px` }}
+      >
         No valid JSON data loaded.
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full overflow-y-auto p-6 font-mono text-sm bg-zinc-950 text-zinc-300 rounded-lg border border-zinc-800 select-text">
+    <div 
+      className="w-full h-full overflow-y-auto p-6 font-mono bg-zinc-950 text-zinc-300 rounded-lg border border-zinc-800 select-text"
+      style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
+    >
       <TreeNode name="root" value={data} depth={0} isLast={true} />
     </div>
   );
@@ -32,6 +41,7 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
+  const editorFontSize = useJSONStore((state) => state.editorFontSize);
   // Start with root expanded, other nodes collapsed by default for performance
   const [isExpanded, setIsExpanded] = useState<boolean>(depth === 0);
   const [copied, setCopied] = useState(false);
@@ -70,7 +80,10 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
     return (
       <div className="flex items-start py-0.5 hover:bg-zinc-900/50 rounded px-1 group transition-colors duration-100">
         {/* Visual spacer to align primitive values with expandable chevron keys */}
-        <span className="w-5 flex-shrink-0 select-none" />
+        <span 
+          className="flex-shrink-0 select-none" 
+          style={{ width: `${Math.max(20, Math.round(editorFontSize * 1.3))}px` }}
+        />
         <span className={`${keyColorClass} font-semibold mr-1`}>
           {typeof name === "number" ? name : `"${name}"`}
         </span>
@@ -95,11 +108,14 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {/* Toggle Arrow */}
-        <span className="text-zinc-500 hover:text-zinc-300 mr-1 select-none flex items-center justify-center w-5 h-5 flex-shrink-0">
+        <span 
+          className="text-zinc-500 hover:text-zinc-300 mr-1 select-none flex items-center justify-center flex-shrink-0"
+          style={{ width: `${Math.max(20, Math.round(editorFontSize * 1.3))}px`, height: `${Math.max(20, Math.round(editorFontSize * 1.3))}px` }}
+        >
           {isExpanded ? (
-            <ChevronDown size={14} className="text-zinc-500" />
+            <ChevronDown size={Math.max(10, Math.round(editorFontSize * 0.9))} className="text-zinc-500" />
           ) : (
-            <ChevronRight size={14} className="text-zinc-500" />
+            <ChevronRight size={Math.max(10, Math.round(editorFontSize * 0.9))} className="text-zinc-500" />
           )}
         </span>
 
@@ -117,7 +133,10 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
         <span className="text-zinc-400 font-semibold">{bracketOpen}</span>
 
         {!isExpanded && (
-          <span className="text-zinc-600 text-xs mx-1 px-1 bg-zinc-900 border border-zinc-800 rounded select-none">
+          <span 
+            className="text-zinc-600 mx-1 px-1 bg-zinc-900 border border-zinc-800 rounded select-none"
+            style={{ fontSize: `${Math.max(8, Math.round(editorFontSize * 0.8))}px` }}
+          >
             {isArray ? `${size} items` : `${size} keys`}
           </span>
         )}
@@ -130,7 +149,11 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
           className="ml-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1.5 md:p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-cyan-400 transition-all duration-100 cursor-pointer flex-shrink-0"
           title="Copy node content"
         >
-          {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+          {copied ? (
+            <Check size={Math.max(8, Math.round(editorFontSize * 0.85))} className="text-emerald-400" />
+          ) : (
+            <Copy size={Math.max(8, Math.round(editorFontSize * 0.85))} />
+          )}
         </button>
 
         {!isLast && !isExpanded && <span className="text-zinc-600 select-none">,</span>}
@@ -161,7 +184,10 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
                 ))}
           </div>
           <div className="flex items-center py-0.5">
-            <span className="w-5 flex-shrink-0 select-none" />
+            <span 
+              className="flex-shrink-0 select-none"
+              style={{ width: `${Math.max(20, Math.round(editorFontSize * 1.3))}px` }}
+            />
             <span className="text-zinc-400 font-semibold">{bracketClose}</span>
             {!isLast && <span className="text-zinc-600 select-none">,</span>}
           </div>

@@ -13,6 +13,7 @@ interface JSONEditorProps {
 
 export default function JSONEditor({ value, onChange, readOnly = false }: JSONEditorProps) {
   const setCursorPos = useJSONStore((state) => state.setCursorPos);
+  const editorFontSize = useJSONStore((state) => state.editorFontSize);
   const editorRef = useRef<any>(null);
 
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
@@ -107,9 +108,9 @@ export default function JSONEditor({ value, onChange, readOnly = false }: JSONEd
         options={{
           readOnly,
           minimap: { enabled: false },
-          fontSize: 14,
+          fontSize: editorFontSize,
           fontFamily: "var(--font-geist-mono), monospace",
-          lineHeight: 22,
+          lineHeight: Math.round(editorFontSize * 1.57),
           cursorBlinking: "smooth",
           cursorSmoothCaretAnimation: "on",
           smoothScrolling: true,
