@@ -69,7 +69,8 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
 
     return (
       <div className="flex items-start py-0.5 hover:bg-zinc-900/50 rounded px-1 group transition-colors duration-100">
-        <span className="text-zinc-500 select-none mr-2">{"  ".repeat(depth)}</span>
+        {/* Visual spacer to align primitive values with expandable chevron keys */}
+        <span className="w-5 flex-shrink-0 select-none" />
         <span className={`${keyColorClass} font-semibold mr-1`}>
           {typeof name === "number" ? name : `"${name}"`}
         </span>
@@ -93,10 +94,8 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
         className="flex items-center hover:bg-zinc-900/50 rounded px-1 cursor-pointer group transition-colors duration-100 py-0.5"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="text-zinc-500 select-none mr-1">{"  ".repeat(depth)}</span>
-        
         {/* Toggle Arrow */}
-        <span className="text-zinc-500 hover:text-zinc-300 mr-1 select-none flex items-center justify-center w-4 h-4">
+        <span className="text-zinc-500 hover:text-zinc-300 mr-1 select-none flex items-center justify-center w-5 h-5 flex-shrink-0">
           {isExpanded ? (
             <ChevronDown size={14} className="text-zinc-500" />
           ) : (
@@ -125,10 +124,10 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
 
         {!isExpanded && <span className="text-zinc-400 font-semibold">{bracketClose}</span>}
 
-        {/* Copy subtree button on hover */}
+        {/* Copy subtree button: always visible on mobile/touch, hover on desktop */}
         <button
           onClick={copyNodeValue}
-          className="ml-2 opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-cyan-400 transition-all duration-100 cursor-pointer"
+          className="ml-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 p-1.5 md:p-1 hover:bg-zinc-800 rounded text-zinc-500 hover:text-cyan-400 transition-all duration-100 cursor-pointer flex-shrink-0"
           title="Copy node content"
         >
           {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
@@ -140,7 +139,7 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
       {/* Expanded Children (Rendered lazily for rendering speed!) */}
       {isExpanded && (
         <>
-          <div className="border-l border-zinc-800/80 ml-2">
+          <div className="border-l border-zinc-800/60 ml-2.5 pl-1">
             {isArray
               ? value.map((item: any, idx: number) => (
                   <TreeNode
@@ -161,9 +160,8 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
                   />
                 ))}
           </div>
-          <div className="flex items-center">
-            <span className="text-zinc-500 select-none mr-2">{"  ".repeat(depth)}</span>
-            <span className="text-zinc-500 w-4 select-none"></span>
+          <div className="flex items-center py-0.5">
+            <span className="w-5 flex-shrink-0 select-none" />
             <span className="text-zinc-400 font-semibold">{bracketClose}</span>
             {!isLast && <span className="text-zinc-600 select-none">,</span>}
           </div>
