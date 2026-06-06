@@ -75,7 +75,7 @@ export default function SharePage({ params }: SharePageProps) {
           is_unique: !hasViewed 
         }).then(({error}) => {
           if (error) {
-            console.error("Failed to track view:", error.message);
+            console.error("Failed to track view:", (error as any).message || String(error));
           } else if (!hasViewed) {
             localStorage.setItem(viewKey, "true");
           }
