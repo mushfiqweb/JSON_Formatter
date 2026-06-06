@@ -55,7 +55,9 @@ import {
   Eye,
   Clock,
   Minus,
-  Plus
+  Plus,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 
 // Dynamically import Monaco Editor to avoid SSR errors
@@ -107,6 +109,7 @@ export default function HomePage() {
   } = useJSONStore();
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const diffDisposablesRef = useRef<any[]>([]);
 
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -117,6 +120,8 @@ export default function HomePage() {
   const [isDeletingShare, setIsDeletingShare] = useState(false);
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMoreViewsOpen, setIsMoreViewsOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rightPaneRef = useRef<HTMLElement | null>(null);
@@ -279,9 +284,10 @@ export default function HomePage() {
 
   const handleDiffEditorMount = (editor: any) => {
     const modifiedEditor = editor.getModifiedEditor();
-    modifiedEditor.onDidChangeModelContent(() => {
+    const disposable = modifiedEditor.onDidChangeModelContent(() => {
       setDiffInput(modifiedEditor.getValue());
     });
+    diffDisposablesRef.current.push(disposable);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -320,11 +326,70 @@ export default function HomePage() {
     };
   }, [isResizing]);
 
-  // Clean up debounce timeout on unmount
+  // Clean up diff editor disposables when switching away from diff view mode to prevent memory leaks
   useEffect(() => {
+    if (viewMode !== "diff") {
+      diffDisposablesRef.current.forEach((d) => {
+        if (d && typeof d.dispose === "function") {
+          d.dispose();
+        }
+      });
+      diffDisposablesRef.current = [];
+    }
+  }, [viewMode]);
+
+  // Clean up debounce timeout, diff editor listeners, and suppress Monaco Canceled errors on unmount
+  useEffect(() => {
+    // 1. Intercept unhandled promise rejections (harmless Monaco cancellations)
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      if (event.reason) {
+        const reasonStr = String(event.reason.message || event.reason.name || event.reason || "");
+        if (reasonStr.includes("Canceled") || reasonStr.includes("Canceled: Canceled")) {
+          event.preventDefault();
+        }
+      }
+    };
+
+    // 2. Intercept console.error calls directly (sometimes logged directly by Monaco core)
+    const originalConsoleError = console.error;
+    const patchedConsoleError = (...args: any[]) => {
+      const firstArg = args[0];
+      const errorStr = typeof firstArg === "string"
+        ? firstArg
+        : firstArg instanceof Error
+          ? firstArg.message
+          : String(firstArg || "");
+
+      // If it contains Monaco cancellation patterns, suppress the output
+      if (
+        errorStr.includes("Canceled: Canceled") ||
+        errorStr.includes("ERR Canceled") ||
+        errorStr === "Canceled"
+      ) {
+        return;
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("unhandledrejection", handleRejection);
+      console.error = patchedConsoleError;
+    }
+
     return () => {
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);
+      }
+      diffDisposablesRef.current.forEach((d) => {
+        if (d && typeof d.dispose === "function") {
+          d.dispose();
+        }
+      });
+      diffDisposablesRef.current = [];
+
+      if (typeof window !== "undefined") {
+        window.removeEventListener("unhandledrejection", handleRejection);
+        console.error = originalConsoleError;
       }
     };
   }, []);
@@ -487,7 +552,7 @@ export default function HomePage() {
       const historyStr = localStorage.getItem("json_formatter_history");
       const history = historyStr ? JSON.parse(historyStr) : [];
       const item = history.find((h: any) => h.id === activeShareId);
-      
+
       if (!item) {
         throw new Error("You do not own this snippet. Local token missing.");
       }
@@ -565,11 +630,11 @@ export default function HomePage() {
         .delete()
         .eq("id", id)
         .eq("creator_token", token);
-      
+
       removeFromHistory(id);
       setHistoryData((prev) => prev.filter((item) => item.id !== id));
       if (activeShareId === id) {
-         window.location.href = "/";
+        window.location.href = "/";
       }
     } catch (err) {
       console.error("Failed to delete snippet", err);
@@ -638,7 +703,7 @@ export default function HomePage() {
 
       // 1. Client-Side Encryption
       const { ciphertext, iv, keyStr } = await encryptJSON(payload);
-      
+
       const creator_token = typeof window !== "undefined" ? window.crypto.randomUUID() : "client-token";
 
       // 2. Upload only encrypted ciphertext, IV and creator_token to Supabase
@@ -667,7 +732,7 @@ export default function HomePage() {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const shareUrl = `${origin}/share/${id}#key=${keyStr}`;
       setShareLink(shareUrl);
-      
+
       // 4. Save to Local History for Dashboard
       // Prefer server returned token if trigger exists, else use our generated one
       const token = data?.[0]?.creator_token || creator_token;
@@ -741,23 +806,23 @@ export default function HomePage() {
         <div className="flex-1 flex justify-center items-center px-4">
           {systemWarning && (
             <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 backdrop-blur-md shadow-lg shadow-amber-500/5 animate-in fade-in slide-in-from-top-2 duration-300">
-              <span className="relative flex h-2 w-2 mr-1">
+              <span className="relative flex h-2 w-2 mb-1 mr-1">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
               </span>
-              <span className="text-amber-400 text-[11px] font-semibold tracking-wide uppercase">
+              <span className="text-amber-400 text-[9px] font-semibold tracking-wide uppercase">
                 {systemWarning}
               </span>
             </div>
           )}
         </div>
 
-        {/* Action Button Bar */}
-        <div className="flex items-center space-x-1 sm:space-x-2">
+        {/* Desktop Action Button Bar */}
+        <div className="hidden lg:flex items-center space-x-1 lg:space-x-2">
           <button
             onClick={handleFormat}
             disabled={!rawInput.trim()}
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center space-x-1.5 px-2.5 lg:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Parse and format JSON"
             aria-label="Format JSON payload"
           >
@@ -768,7 +833,7 @@ export default function HomePage() {
           <button
             onClick={handleMinify}
             disabled={!rawInput.trim()}
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-violet-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-violet-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center space-x-1.5 px-2.5 lg:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-violet-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-violet-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Minify JSON"
             aria-label="Minify JSON payload"
           >
@@ -779,7 +844,7 @@ export default function HomePage() {
           <button
             onClick={handleRepair}
             disabled={!rawInput.trim()}
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-pink-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-pink-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center space-x-1.5 px-2.5 lg:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-pink-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-pink-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Auto-repair LLM/malformed JSON"
             aria-label="Auto repair malformed JSON syntax"
           >
@@ -787,11 +852,11 @@ export default function HomePage() {
             <span className="hidden md:inline">Auto-Repair</span>
           </button>
 
-          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
+          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 lg:mx-1"></div>
 
           <button
             onClick={() => setHistoryModalOpen(true)}
-            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer"
+            className="flex items-center space-x-1.5 px-2.5 lg:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer"
             title="My Shared Snippets"
             aria-label="View history of shared snippets"
           >
@@ -799,11 +864,11 @@ export default function HomePage() {
             <span className="hidden md:inline">History</span>
           </button>
 
-          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
+          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 lg:mx-1"></div>
 
           {/* Dynamic Font Size Control */}
-          <div 
-            className="flex items-center space-x-1 rounded-md border border-zinc-850 bg-zinc-900/50 px-1 py-0.5" 
+          <div
+            className="flex items-center space-x-1 rounded-md border border-zinc-850 bg-zinc-900/50 px-1 py-0.5"
             title="Adjust Editor Font Size"
           >
             <button
@@ -827,7 +892,7 @@ export default function HomePage() {
             </button>
           </div>
 
-          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
+          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 lg:mx-1"></div>
 
           <button
             onClick={handleTrashClick}
@@ -843,13 +908,143 @@ export default function HomePage() {
             <button
               onClick={() => setIsShareModalOpen(true)}
               disabled={!rawInput.trim() || !!error || !!systemWarning}
-              className="flex items-center space-x-1.5 px-3 sm:px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+              className="flex items-center space-x-1.5 px-3 lg:px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
               aria-label="Share encrypted JSON"
             >
               <Share2 size={13} />
               <span className="hidden sm:inline">Share</span>
             </button>
           </div>
+        </div>
+
+        {/* Mobile Action Menu Container */}
+        <div className="flex items-center lg:hidden relative">
+          {/* Mobile Sliding Menu Overlay */}
+          <div
+            className={`absolute right-12 h-10 bg-zinc-900/95 border border-zinc-800/80 backdrop-blur-md flex items-center justify-start px-3 space-x-2 rounded-lg shadow-xl shadow-black/40 overflow-x-auto scrollbar-none transition-all duration-300 ease-in-out z-25 origin-right ${isMobileMenuOpen
+              ? "translate-x-0 opacity-100 pointer-events-auto w-[calc(100vw-80px)] max-w-[360px] scale-100"
+              : "translate-x-4 opacity-0 pointer-events-none w-0 scale-90"
+              }`}
+          >
+            <button
+              onClick={() => {
+                handleFormat();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={!rawInput.trim()}
+              className="p-2 rounded-md border border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:text-cyan-400 hover:scale-110 active:scale-95 transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
+              title="Format JSON"
+              aria-label="Format JSON"
+            >
+              <AlignLeft size={14} />
+            </button>
+
+            <button
+              onClick={() => {
+                handleMinify();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={!rawInput.trim()}
+              className="p-2 rounded-md border border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:text-violet-400 hover:scale-110 active:scale-95 transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
+              title="Minify JSON"
+              aria-label="Minify JSON"
+            >
+              <Minimize2 size={14} />
+            </button>
+
+            <button
+              onClick={() => {
+                handleRepair();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={!rawInput.trim()}
+              className="p-2 rounded-md border border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:text-pink-400 hover:scale-110 active:scale-95 transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
+              title="Auto-Repair LLM JSON"
+              aria-label="Auto-Repair JSON"
+            >
+              <Sparkles size={14} className="text-pink-500" />
+            </button>
+
+            <div className="w-px h-5 bg-zinc-800 my-auto flex-shrink-0"></div>
+
+            <button
+              onClick={() => {
+                setHistoryModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="p-2 rounded-md border border-zinc-800 bg-zinc-950/40 text-zinc-400 hover:text-cyan-400 hover:scale-110 active:scale-95 transition-all cursor-pointer flex-shrink-0"
+              title="History"
+              aria-label="History"
+            >
+              <History size={14} />
+            </button>
+
+            <div className="w-px h-5 bg-zinc-800 my-auto flex-shrink-0"></div>
+
+            {/* Font size control */}
+            <div className="flex items-center space-x-1 rounded-md border border-zinc-800 bg-zinc-950/40 px-1 py-0.5 flex-shrink-0">
+              <button
+                onClick={() => setEditorFontSize(Math.max(10, editorFontSize - 1))}
+                disabled={editorFontSize <= 10}
+                className="p-1 rounded text-zinc-400 hover:text-cyan-400 hover:bg-zinc-850 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                aria-label="Decrease Font Size"
+              >
+                <Minus size={10} />
+              </button>
+              <span className="text-[9px] font-mono font-semibold text-zinc-300 px-0.5 select-none w-8 text-center">
+                {editorFontSize}px
+              </span>
+              <button
+                onClick={() => setEditorFontSize(Math.min(26, editorFontSize + 1))}
+                disabled={editorFontSize >= 26}
+                className="p-1 rounded text-zinc-400 hover:text-cyan-400 hover:bg-zinc-850 disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                aria-label="Increase Font Size"
+              >
+                <Plus size={10} />
+              </button>
+            </div>
+
+            <div className="w-px h-5 bg-zinc-800 my-auto flex-shrink-0"></div>
+
+            <button
+              onClick={() => {
+                handleTrashClick();
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={!rawInput}
+              className="p-2 rounded-md hover:bg-zinc-900 text-zinc-500 hover:text-red-400 hover:scale-110 active:scale-95 transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
+              title={activeShareId ? "Delete Shared Snippet" : "Clear all"}
+              aria-label="Clear all"
+            >
+              <Trash2 size={14} className={activeShareId ? "text-red-400" : ""} />
+            </button>
+
+            <button
+              onClick={() => {
+                setIsShareModalOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              disabled={!rawInput.trim() || !!error || !!systemWarning}
+              className="p-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white hover:scale-110 active:scale-95 transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
+              title="Share encrypted JSON"
+              aria-label="Share"
+            >
+              <Share2 size={14} />
+            </button>
+          </div>
+
+          {/* Animated Hamburger / Close Button Toggle */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="relative h-10 w-10 flex flex-col justify-center items-center rounded-lg border border-zinc-850 bg-zinc-900/40 hover:bg-zinc-900 text-zinc-400 hover:text-cyan-400 z-30 transition-all cursor-pointer focus:outline-none"
+            aria-label="Toggle navigation menu"
+          >
+            <div className="flex flex-col justify-between w-5 h-3.5 transform transition-all duration-300">
+              <span className={`h-0.5 w-full bg-current rounded transform transition-all duration-300 origin-center ${isMobileMenuOpen ? "rotate-45 translate-y-[6px]" : ""}`} />
+              <span className={`h-0.5 w-full bg-current rounded transition-all duration-300 ${isMobileMenuOpen ? "opacity-0 scale-x-0" : ""}`} />
+              <span className={`h-0.5 w-full bg-current rounded transform transition-all duration-300 origin-center ${isMobileMenuOpen ? "-rotate-45 -translate-y-[6px]" : ""}`} />
+            </div>
+          </button>
         </div>
       </header>
 
@@ -858,11 +1053,10 @@ export default function HomePage() {
         <div className="flex w-full bg-zinc-900/40 p-1 rounded-lg border border-zinc-900">
           <button
             onClick={() => setMobileTab("input")}
-            className={`flex-1 flex items-center justify-center space-x-1.5 py-2.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-              mobileTab === "input"
-                ? "bg-zinc-800 text-cyan-400 shadow"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            className={`flex-1 flex items-center justify-center space-x-1.5 py-2.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${mobileTab === "input"
+              ? "bg-zinc-800 text-cyan-400 shadow"
+              : "text-zinc-400 hover:text-zinc-200"
+              }`}
             aria-label="Switch to Input Panel"
           >
             <Code size={14} />
@@ -875,11 +1069,10 @@ export default function HomePage() {
           </button>
           <button
             onClick={() => setMobileTab("output")}
-            className={`flex-grow flex-1 flex items-center justify-center space-x-1.5 py-2.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-200 relative cursor-pointer ${
-              mobileTab === "output"
-                ? "bg-zinc-800 text-cyan-400 shadow"
-                : "text-zinc-400 hover:text-zinc-200"
-            }`}
+            className={`flex-grow flex-1 flex items-center justify-center space-x-1.5 py-2.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-200 relative cursor-pointer ${mobileTab === "output"
+              ? "bg-zinc-800 text-cyan-400 shadow"
+              : "text-zinc-400 hover:text-zinc-200"
+              }`}
             aria-label="Switch to Output Panel"
           >
             <Braces size={14} />
@@ -911,9 +1104,8 @@ export default function HomePage() {
 
         {/* Left Pane - Input Staging Editor Area */}
         <section
-          className={`flex-col h-full min-h-0 ${
-            isDesktop || mobileTab === "input" ? "flex" : "hidden"
-          }`}
+          className={`flex-col h-full min-h-0 ${isDesktop || mobileTab === "input" ? "flex" : "hidden"
+            }`}
           style={{ width: isDesktop ? `${leftWidth}%` : "100%" }}
         >
           <div className="flex items-center justify-between mb-2 px-1 select-none">
@@ -988,47 +1180,74 @@ export default function HomePage() {
         {/* Right Pane - Output Viewer / Transformation Tab Area */}
         <section
           ref={rightPaneRef}
-          className={`relative flex-col bg-zinc-950 transition-all ${
-            isDesktop || mobileTab === "output" ? "flex" : "hidden"
-          } ${
-            isFullscreen
+          className={`relative flex-col bg-zinc-950 transition-all ${isDesktop || mobileTab === "output" ? "flex" : "hidden"
+            } ${isFullscreen
               ? "w-full h-full p-6"
               : "h-full min-h-0"
-          }`}
+            }`}
           style={isFullscreen ? {} : { width: isDesktop ? `${100 - leftWidth}%` : "100%" }}
         >
           {/* Tab Navigation */}
           <div className="flex items-center justify-between mb-2 min-h-6 overflow-hidden max-w-full select-none">
-            <div className="relative flex-grow mr-2 overflow-hidden">
-              <div className="flex space-x-1 p-0.5 bg-zinc-900/50 border border-zinc-900 rounded-lg overflow-x-auto scrollbar-none flex-nowrap w-full">
-                {[
-                  { id: "formatted", label: "Formatted", icon: <Code size={13} /> },
-                  { id: "tree", label: "Tree", icon: <TreeDeciduous size={13} /> },
-                  { id: "yaml", label: "YAML", icon: <FileCode size={13} /> },
-                  { id: "xml", label: "XML", icon: <FileCode size={13} /> },
-                  { id: "csv", label: "CSV", icon: <Table size={13} /> },
-                  { id: "types", label: "Types", icon: <FileCode size={13} /> },
-                  { id: "schema", label: "Schema", icon: <Braces size={13} /> },
-                  { id: "query", label: "Query", icon: <Search size={13} /> },
-                  { id: "diff", label: "Diff", icon: <GitCompare size={13} /> },
-                  { id: "escaped", label: "Escaped", icon: <Quote size={13} /> },
-                  { id: "decoder", label: "JWT/B64", icon: <Key size={13} /> },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setViewMode(tab.id as ViewMode)}
-                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium tracking-wide transition-all cursor-pointer flex-shrink-0 ${viewMode === tab.id
-                      ? "bg-zinc-800 text-cyan-400 font-semibold"
-                      : "text-zinc-400 hover:text-zinc-200"
-                      }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
+            <div className="relative flex-grow mr-2 overflow-hidden flex items-center">
+              <div className="flex space-x-1 p-0.5 bg-zinc-900/50 border border-zinc-900 rounded-lg overflow-x-auto scrollbar-none flex-nowrap w-full items-center">
+
+                {/* Formatted Tab (Always visible) */}
+                <button
+                  onClick={() => setViewMode("formatted")}
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium tracking-wide transition-all cursor-pointer flex-shrink-0 ${viewMode === "formatted"
+                    ? "bg-zinc-800 text-cyan-400 font-semibold"
+                    : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                >
+                  <Code size={13} />
+                  <span>Formatted</span>
+                </button>
+
+                {/* More / Less Toggle Button (Mobile only) */}
+                <button
+                  onClick={() => setIsMoreViewsOpen(!isMoreViewsOpen)}
+                  className="flex lg:hidden items-center space-x-1 px-2.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-all cursor-pointer flex-shrink-0 border border-zinc-850 hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400"
+                >
+                  <span>{isMoreViewsOpen ? "Less" : "More"}</span>
+                  {isMoreViewsOpen ? <ChevronLeft size={12} /> : <ChevronRight size={12} />}
+                </button>
+
+                {/* Hidden Views Container (Mobile sliding transition, Desktop always flex) */}
+                <div
+                  className={`flex items-center space-x-1 transition-all duration-500 ease-in-out lg:flex lg:max-w-none lg:opacity-100 lg:translate-x-0 lg:pointer-events-auto ${isMoreViewsOpen
+                    ? "max-w-[800px] opacity-100 translate-x-0 pointer-events-auto"
+                    : "max-w-0 opacity-0 translate-x-4 overflow-hidden pointer-events-none"
+                    }`}
+                >
+                  {[
+                    { id: "tree", label: "Tree", icon: <TreeDeciduous size={13} /> },
+                    { id: "yaml", label: "YAML", icon: <FileCode size={13} /> },
+                    { id: "xml", label: "XML", icon: <FileCode size={13} /> },
+                    { id: "csv", label: "CSV", icon: <Table size={13} /> },
+                    { id: "types", label: "Types", icon: <FileCode size={13} /> },
+                    { id: "schema", label: "Schema", icon: <Braces size={13} /> },
+                    { id: "query", label: "Query", icon: <Search size={13} /> },
+                    { id: "diff", label: "Diff", icon: <GitCompare size={13} /> },
+                    { id: "escaped", label: "Escaped", icon: <Quote size={13} /> },
+                    { id: "decoder", label: "JWT/B64", icon: <Key size={13} /> },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setViewMode(tab.id as ViewMode)}
+                      className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium tracking-wide transition-all cursor-pointer flex-shrink-0 ${viewMode === tab.id
+                        ? "bg-zinc-800 text-cyan-400 font-semibold"
+                        : "text-zinc-400 hover:text-zinc-200"
+                        }`}
+                    >
+                      {tab.icon}
+                      <span>{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
               {/* Fade out mask at the right edge to indicate horizontal scroll */}
-              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none md:hidden"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none lg:hidden"></div>
             </div>
 
             {/* Output Panel Actions */}
@@ -1036,17 +1255,18 @@ export default function HomePage() {
               {rawInput.trim() && !error && (
                 <button
                   onClick={handleCopy}
-                  className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-cyan-500/30 text-xs text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900/50 transition-all cursor-pointer flex-shrink-0"
+                  className="flex items-center justify-center space-x-1 px-3 py-1.5 lg:px-3 lg:py-1.5 max-lg:p-2 rounded border border-zinc-850 hover:border-cyan-500/30 text-xs text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900/50 hover:scale-105 active:scale-95 transition-all cursor-pointer flex-shrink-0"
+                  title="Copy formatted JSON output"
                 >
                   {copyStatus === "copied" ? (
                     <>
                       <Check size={12} className="text-emerald-400" />
-                      <span className="text-emerald-400">Copied!</span>
+                      <span className="text-emerald-400 hidden lg:inline">Copied!</span>
                     </>
                   ) : (
                     <>
                       <Copy size={12} />
-                      <span>Copy</span>
+                      <span className="hidden lg:inline">Copy</span>
                     </>
                   )}
                 </button>
@@ -1055,11 +1275,11 @@ export default function HomePage() {
               {rawInput.trim() && (
                 <button
                   onClick={clearAll}
-                  className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-red-500/30 text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-900/50 transition-all cursor-pointer flex-shrink-0"
+                  className="flex items-center justify-center space-x-1 px-3 py-1 lg:px-3 lg:py-1 max-lg:p-2 rounded border border-zinc-850 hover:border-red-500/30 text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-900/50 hover:scale-105 active:scale-95 transition-all cursor-pointer flex-shrink-0"
                   title="Clear JSON from editor and local storage"
                 >
                   <Trash2 size={12} />
-                  <span>Clear</span>
+                  <span className="hidden lg:inline">Clear</span>
                 </button>
               )}
             </div>
@@ -1105,7 +1325,7 @@ export default function HomePage() {
                 <JSONTreeView data={parsedJSON} />
               )}
               {viewMode === "yaml" && (
-                <pre 
+                <pre
                   className="w-full h-full p-4 overflow-auto font-mono text-cyan-400 bg-zinc-950 whitespace-pre-wrap select-text"
                   style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                 >
@@ -1119,7 +1339,7 @@ export default function HomePage() {
                 </pre>
               )}
               {viewMode === "xml" && (
-                <pre 
+                <pre
                   className="w-full h-full p-4 overflow-auto font-mono text-emerald-400 bg-zinc-950 whitespace-pre-wrap select-text"
                   style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                 >
@@ -1129,7 +1349,7 @@ export default function HomePage() {
                 </pre>
               )}
               {viewMode === "csv" && (
-                <pre 
+                <pre
                   className="w-full h-full p-4 overflow-auto font-mono text-amber-400 bg-zinc-950 whitespace-pre-wrap select-text"
                   style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                 >
@@ -1349,7 +1569,7 @@ export default function HomePage() {
                           {decodedResult.isJWT && decodedResult.header && (
                             <div className="space-y-1.5">
                               <span className="text-[10px] font-bold text-pink-500 uppercase tracking-widest">JWT Header</span>
-                              <pre 
+                              <pre
                                 className="bg-zinc-900 border border-zinc-850 rounded p-3 text-pink-400 overflow-x-auto select-text"
                                 style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                               >
@@ -1370,7 +1590,7 @@ export default function HomePage() {
                                   Load to Main Workspace
                                 </button>
                               </div>
-                              <pre 
+                              <pre
                                 className="bg-zinc-900 border border-zinc-850 rounded p-3 text-cyan-400 overflow-x-auto select-text"
                                 style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                               >
@@ -1520,7 +1740,7 @@ export default function HomePage() {
               const historyStr = localStorage.getItem("json_formatter_history");
               const history = historyStr ? JSON.parse(historyStr) : [];
               const isOwner = history.some((h: any) => h.id === activeShareId);
-              
+
               return (
                 <div className="mt-4">
                   {isOwner ? (
@@ -1589,13 +1809,13 @@ export default function HomePage() {
       {isHistoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm select-none animate-fade-in">
           <div className="w-full max-w-2xl max-h-[85vh] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl flex flex-col mx-4 overflow-hidden">
-            
+
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md">
               <h3 className="text-base font-semibold text-zinc-100 flex items-center space-x-2">
                 <History size={18} className="text-cyan-500" />
                 <span>My Shared Snippets</span>
               </h3>
-              <button 
+              <button
                 onClick={() => setHistoryModalOpen(false)}
                 className="text-zinc-500 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
               >
@@ -1620,7 +1840,7 @@ export default function HomePage() {
                 <div className="grid grid-cols-1 gap-3">
                   {historyData.map((item) => (
                     <div key={item.id} className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between transition-colors group">
-                      
+
                       <div className="mb-3 sm:mb-0">
                         <div className="flex items-center space-x-2 mb-1.5">
                           <span className="text-xs font-mono text-cyan-400 font-semibold">{item.id.split("-")[0]}...</span>
@@ -1628,7 +1848,7 @@ export default function HomePage() {
                             {new Date(item.local_created_at).toLocaleDateString()}
                           </span>
                         </div>
-                        
+
                         <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500 font-mono">
                           <div className="flex items-center space-x-1.5">
                             <Eye size={12} className={item.views_count > 0 ? "text-emerald-400" : ""} />
@@ -1642,13 +1862,13 @@ export default function HomePage() {
                       </div>
 
                       <div className="flex items-center space-x-2">
-                        <a 
+                        <a
                           href={`/share/${item.id}`}
                           onClick={(e) => {
-                             if (activeShareId === item.id) {
-                               e.preventDefault();
-                               setHistoryModalOpen(false);
-                             }
+                            if (activeShareId === item.id) {
+                              e.preventDefault();
+                              setHistoryModalOpen(false);
+                            }
                           }}
                           className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded transition-colors cursor-pointer text-center"
                         >
@@ -1656,7 +1876,7 @@ export default function HomePage() {
                         </a>
                         <button
                           onClick={() => {
-                            if(window.confirm("Permanently delete this snippet from the cloud?")) {
+                            if (window.confirm("Permanently delete this snippet from the cloud?")) {
                               executeHistoryDelete(item.id, item.token);
                             }
                           }}
@@ -1674,9 +1894,9 @@ export default function HomePage() {
             </div>
 
             <div className="p-4 border-t border-zinc-800 bg-zinc-900/50 text-center">
-               <p className="text-[10px] text-zinc-500 max-w-sm mx-auto leading-relaxed">
-                 History is tied to this browser device via an anonymous ownership token. Clearing local storage will result in loss of access to these snippets.
-               </p>
+              <p className="text-[10px] text-zinc-500 max-w-sm mx-auto leading-relaxed">
+                History is tied to this browser device via an anonymous ownership token. Clearing local storage will result in loss of access to these snippets.
+              </p>
             </div>
           </div>
         </div>

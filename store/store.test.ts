@@ -7,6 +7,7 @@ describe("JSON Store", () => {
   let mockStorage: any;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     // Reset Zustand store
     useJSONStore.setState({ rawInput: "" });
     
@@ -24,13 +25,20 @@ describe("JSON Store", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
-  it("should persist normal-sized input to localStorage and clear warnings", () => {
+  it("should persist normal-sized input to localStorage and clear warnings after debounce", () => {
     const input = '{"foo": "bar"}';
     useJSONStore.getState().setRawInput(input);
     expect(useJSONStore.getState().rawInput).toBe(input);
     expect(useJSONStore.getState().systemWarning).toBeNull();
+    
+    // Check that it's debounced (not called synchronously)
+    expect(setItemSpy).not.toHaveBeenCalled();
+    
+    vi.runAllTimers();
+    
     expect(setItemSpy).toHaveBeenCalledWith("json_formatter_raw_input", input);
     expect(removeItemSpy).not.toHaveBeenCalled();
   });
@@ -40,17 +48,26 @@ describe("JSON Store", () => {
     useJSONStore.getState().setRawInput(largeInput);
     expect(useJSONStore.getState().rawInput).toBe(largeInput);
     expect(useJSONStore.getState().systemWarning).toContain("Payload > 1.5MB");
+    
+    vi.runAllTimers();
+    
     expect(setItemSpy).not.toHaveBeenCalled();
     expect(removeItemSpy).toHaveBeenCalledWith("json_formatter_raw_input");
   });
 
-  it("should handle QuotaExceededError, clean up, and set warning", () => {
+  it("should handle QuotaExceededError, clean up, and set warning after debounce", () => {
     setItemSpy.mockImplementation(() => {
       throw new Error("QuotaExceededError");
     });
     const input = '{"foo": "bar"}';
     useJSONStore.getState().setRawInput(input);
     expect(useJSONStore.getState().rawInput).toBe(input);
+    
+    // Not set/warned synchronously
+    expect(useJSONStore.getState().systemWarning).toBeNull();
+    
+    vi.runAllTimers();
+    
     expect(useJSONStore.getState().systemWarning).toContain("Storage Quota Exceeded");
     expect(setItemSpy).toHaveBeenCalledWith("json_formatter_raw_input", input);
     expect(removeItemSpy).toHaveBeenCalledWith("json_formatter_raw_input");
