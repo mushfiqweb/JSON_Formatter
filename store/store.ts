@@ -46,6 +46,7 @@ interface JSONFormatterState {
   queryInput: string;
   decoderInput: string;
   targetLanguage: CodeLanguage;
+  systemWarning: string | null;
 
   // Actions
   setRawInput: (input: string) => void;
@@ -60,6 +61,7 @@ interface JSONFormatterState {
   setQueryInput: (queryInput: string) => void;
   setDecoderInput: (decoderInput: string) => void;
   setTargetLanguage: (targetLanguage: CodeLanguage) => void;
+  setSystemWarning: (warning: string | null) => void;
   setAnalysisResults: (results: {
     formatted: string;
     minified: string;
@@ -95,12 +97,27 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
   queryInput: "",
   decoderInput: "",
   targetLanguage: "typescript",
+  systemWarning: null,
 
   setRawInput: (input) => {
+    let warningMsg: string | null = null;
     if (typeof window !== "undefined") {
-      localStorage.setItem("json_formatter_raw_input", input);
+      const MAX_STORAGE_SIZE = 1500000; // 1.5MB limit
+      if (input.length > MAX_STORAGE_SIZE) {
+        localStorage.removeItem("json_formatter_raw_input");
+        warningMsg = "Memory Mode: Payload > 1.5MB. Bypassing local storage.";
+        console.warn(`[Storage] Input size (${input.length} chars) exceeds local storage threshold of 1.5MB. Bypassing localStorage.`);
+      } else {
+        try {
+          localStorage.setItem("json_formatter_raw_input", input);
+        } catch (e) {
+          warningMsg = "Storage Quota Exceeded: Operating in memory-only mode.";
+          console.warn("[Storage] Failed to save rawInput to localStorage. Removing key to clear space.", e);
+          localStorage.removeItem("json_formatter_raw_input");
+        }
+      }
     }
-    set({ rawInput: input });
+    set({ rawInput: input, systemWarning: warningMsg });
   },
   setIndent: (indent) => set({ indent }),
   setViewMode: (mode) => set({ viewMode: mode }),
@@ -114,6 +131,7 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
   setQueryInput: (queryInput) => set({ queryInput }),
   setDecoderInput: (decoderInput) => set({ decoderInput }),
   setTargetLanguage: (targetLanguage) => set({ targetLanguage }),
+  setSystemWarning: (warning) => set({ systemWarning: warning }),
 
   clearAll: () => {
     if (typeof window !== "undefined") {
@@ -137,6 +155,7 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
       schemaInput: "",
       queryInput: "",
       decoderInput: "",
+      systemWarning: null,
     });
   },
 

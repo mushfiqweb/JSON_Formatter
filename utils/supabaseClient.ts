@@ -32,7 +32,11 @@ export const supabaseClient = {
 
         if (typeof window !== "undefined") {
           console.log(`[Mock DB] Inserting snippet: saving key "snippet_${id}" to localStorage`, newRecord);
-          localStorage.setItem(`snippet_${id}`, JSON.stringify(newRecord));
+          try {
+            localStorage.setItem(`snippet_${id}`, JSON.stringify(newRecord));
+          } catch (err) {
+            console.warn(`[Mock DB] Failed to save snippet to localStorage (QuotaExceeded?).`, err);
+          }
 
           // Also attempt to persist on server via API route asynchronously
           fetch("/api/mock-share", {

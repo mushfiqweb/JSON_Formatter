@@ -340,3 +340,108 @@ export function decodeJWTOrBase64(input: string): DecodedTokenResult {
     };
   }
 }
+
+export function getLineColFromOffset(text: string, offset: number): { line: number; column: number } {
+  let line = 1;
+  let column = 1;
+
+  const limit = Math.min(Math.max(0, offset), text.length);
+
+  for (let i = 0; i < limit; i++) {
+    const char = text[i];
+    if (char === "\n") {
+      line++;
+      column = 1;
+    } else if (char !== "\r") {
+      column++;
+    }
+  }
+
+  return { line, column };
+}
+
+export interface ParsedJSONError {
+  message: string;
+  line?: number;
+  column?: number;
+}
+
+export function parseJSONError(err: any, rawText: string): ParsedJSONError {
+  const errMsg = err?.message || String(err || "Unknown error");
+
+  // 1. Check direct error properties (e.g. from Firefox, Safari, or custom error structures)
+  let line = err?.line ?? err?.lineNumber;
+  let column = err?.column ?? err?.columnNumber ?? err?.columnNo;
+
+  if (typeof line === "number" && typeof column === "number") {
+    return { message: errMsg, line, column };
+  }
+  if (typeof line === "number") {
+    return { message: errMsg, line, column: column ?? 1 };
+  }
+
+  // 2. Pre-clean and match V8's parenthesized line/column format if present
+  // Example: "Expected ',' or '}' after property value in JSON at position 123 (line 3 column 5)"
+  const v8LineColRegex = /\s*\(line\s+(\d+)\s+column\s+(\d+)\)/i;
+  const matchV8LineCol = errMsg.match(v8LineColRegex);
+  if (matchV8LineCol) {
+    const cleanMsg = errMsg.replace(v8LineColRegex, "");
+    return {
+      message: cleanMsg,
+      line: parseInt(matchV8LineCol[1], 10),
+      column: parseInt(matchV8LineCol[2], 10),
+    };
+  }
+
+  // 3. Check for "line X column Y" format (Firefox/Safari/Node)
+  const lineColRegex = /line\s+(\d+)\s+column\s+(\d+)/i;
+  const matchLineCol = errMsg.match(lineColRegex);
+  if (matchLineCol) {
+    return {
+      message: errMsg,
+      line: parseInt(matchLineCol[1], 10),
+      column: parseInt(matchLineCol[2], 10),
+    };
+  }
+
+  // 4. Check for "line X, column Y" format
+  const lineColCommaRegex = /line\s+(\d+),\s+column\s+(\d+)/i;
+  const matchLineColComma = errMsg.match(lineColCommaRegex);
+  if (matchLineColComma) {
+    return {
+      message: errMsg,
+      line: parseInt(matchLineColComma[1], 10),
+      column: parseInt(matchLineColComma[2], 10),
+    };
+  }
+
+  // 5. Check for position offset "at position X" (V8/Chrome/Edge)
+  const positionRegex = /at position\s+(\d+)/i;
+  const matchPosition = errMsg.match(positionRegex);
+  if (matchPosition) {
+    const offset = parseInt(matchPosition[1], 10);
+    const pos = getLineColFromOffset(rawText, offset);
+
+    // Clean up the error message by removing redundant (line X column Y) parens if present
+    const cleanMsg = errMsg.replace(/\s*\(line\s+\d+\s+column\s+\d+\)/i, "");
+
+    return {
+      message: cleanMsg,
+      line: pos.line,
+      column: pos.column,
+    };
+  }
+
+  // 6. Fallback for "unexpected end of" errors
+  if (/unexpected end of/i.test(errMsg)) {
+    const pos = getLineColFromOffset(rawText, rawText.length);
+    return {
+      message: errMsg,
+      line: pos.line,
+      column: pos.column,
+    };
+  }
+
+  return { message: errMsg };
+}
+
