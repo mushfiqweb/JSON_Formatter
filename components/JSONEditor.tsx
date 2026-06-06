@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import Editor, { Monaco } from "@monaco-editor/react";
 import { useJSONStore } from "@/store/store";
 import { repairAndFormatJSON } from "@/utils/jsonUtils";
@@ -15,6 +15,18 @@ export default function JSONEditor({ value, onChange, readOnly = false }: JSONEd
   const setCursorPos = useJSONStore((state) => state.setCursorPos);
   const editorFontSize = useJSONStore((state) => state.editorFontSize);
   const editorRef = useRef<any>(null);
+  const disposablesRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    return () => {
+      disposablesRef.current.forEach((d) => {
+        if (d && typeof d.dispose === "function") {
+          d.dispose();
+        }
+      });
+      disposablesRef.current = [];
+    };
+  }, []);
 
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     editorRef.current = editor;
@@ -47,13 +59,14 @@ export default function JSONEditor({ value, onChange, readOnly = false }: JSONEd
     monaco.editor.setTheme("zen-dark");
 
     // Track cursor movements to update the status bar
-    editor.onDidChangeCursorPosition((e: any) => {
+    const cursorListener = editor.onDidChangeCursorPosition((e: any) => {
       setCursorPos(e.position.lineNumber, e.position.column);
     });
+    disposablesRef.current.push(cursorListener);
 
     // Auto-format raw input on paste
     if (!readOnly) {
-      editor.onDidPaste((e: any) => {
+      const pasteListener = editor.onDidPaste((e: any) => {
         setTimeout(() => {
           const rawText = editor.getValue();
           if (!rawText.trim()) return;
@@ -86,6 +99,7 @@ export default function JSONEditor({ value, onChange, readOnly = false }: JSONEd
           }
         }, 50);
       });
+      disposablesRef.current.push(pasteListener);
     }
   };
 

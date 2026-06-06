@@ -88,6 +88,8 @@ interface JSONFormatterState {
   }) => void;
 }
 
+let storageDebounceTimeout: NodeJS.Timeout | null = null;
+
 export const useJSONStore = create<JSONFormatterState>((set) => ({
   rawInput: "",
   formattedOutput: "",
@@ -120,18 +122,25 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
     let warningMsg: string | null = null;
     if (typeof window !== "undefined") {
       const MAX_STORAGE_SIZE = 1500000; // 1.5MB limit
+      if (storageDebounceTimeout) {
+        clearTimeout(storageDebounceTimeout);
+        storageDebounceTimeout = null;
+      }
       if (input.length > MAX_STORAGE_SIZE) {
         localStorage.removeItem("json_formatter_raw_input");
         warningMsg = "Memory Mode: Payload > 1.5MB. Bypassing local storage.";
         console.warn(`[Storage] Input size (${input.length} chars) exceeds local storage threshold of 1.5MB. Bypassing localStorage.`);
       } else {
-        try {
-          localStorage.setItem("json_formatter_raw_input", input);
-        } catch (e) {
-          warningMsg = "Storage Quota Exceeded: Operating in memory-only mode.";
-          console.warn("[Storage] Failed to save rawInput to localStorage. Removing key to clear space.", e);
-          localStorage.removeItem("json_formatter_raw_input");
-        }
+        // Debounce writing to localStorage to prevent blocking the main thread during typing
+        storageDebounceTimeout = setTimeout(() => {
+          try {
+            localStorage.setItem("json_formatter_raw_input", input);
+          } catch (e) {
+            console.warn("[Storage] Failed to save rawInput to localStorage. Removing key to clear space.", e);
+            localStorage.removeItem("json_formatter_raw_input");
+            set({ systemWarning: "Storage Quota Exceeded: Operating in memory-only mode." });
+          }
+        }, 800); // 800ms debounce
       }
     }
     set({ rawInput: input, systemWarning: warningMsg });
