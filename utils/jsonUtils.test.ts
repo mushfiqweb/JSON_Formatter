@@ -11,6 +11,8 @@ import {
   decodeJWTOrBase64,
   encryptJSON,
   decryptJSON,
+  getLineColFromOffset,
+  parseJSONError,
 } from "./jsonUtils";
 
 beforeAll(() => {
@@ -138,6 +140,83 @@ describe("jsonUtils", () => {
 
       const decrypted = await decryptJSON(ciphertext, iv, keyStr);
       expect(decrypted).toBe(secret);
+    });
+  });
+
+  describe("getLineColFromOffset", () => {
+    it("should calculate correct line and column on Unix line endings", () => {
+      const text = '{\n  "name": "John",\n  "age": 30\n}';
+      // offset = 0 -> '{'
+      expect(getLineColFromOffset(text, 0)).toEqual({ line: 1, column: 1 });
+      // offset = 1 -> '\n'
+      expect(getLineColFromOffset(text, 1)).toEqual({ line: 1, column: 2 });
+      // offset = 2 -> ' ' on line 2
+      expect(getLineColFromOffset(text, 2)).toEqual({ line: 2, column: 1 });
+      // offset = 4 -> '"' on line 2
+      expect(getLineColFromOffset(text, 4)).toEqual({ line: 2, column: 3 });
+    });
+
+    it("should calculate correct line and column on Windows line endings", () => {
+      const text = '{\r\n  "name": "John"\r\n}';
+      // offset = 0 -> '{'
+      expect(getLineColFromOffset(text, 0)).toEqual({ line: 1, column: 1 });
+      // offset = 1 -> '\r'
+      expect(getLineColFromOffset(text, 1)).toEqual({ line: 1, column: 2 });
+      // offset = 2 -> '\n'
+      expect(getLineColFromOffset(text, 2)).toEqual({ line: 1, column: 2 });
+      // offset = 3 -> ' ' on line 2
+      expect(getLineColFromOffset(text, 3)).toEqual({ line: 2, column: 1 });
+    });
+  });
+
+  describe("parseJSONError", () => {
+    it("should parse standard V8 error position format", () => {
+      const text = '{\n  "name": "John",\n  "age": 30,\n  badstring\n}';
+      const errorMsg = "Unexpected token b in JSON at position 35";
+      const err = new Error(errorMsg);
+      const parsed = parseJSONError(err, text);
+      expect(parsed.line).toBe(4);
+      expect(parsed.column).toBe(3);
+      expect(parsed.message).toBe(errorMsg);
+    });
+
+    it("should parse new V8 line/col inside parens format", () => {
+      const text = '{\n  "name": "John"\n}';
+      const errorMsg = "Expected ',' or '}' after property value in JSON at position 123 (line 3 column 5)";
+      const err = new Error(errorMsg);
+      const parsed = parseJSONError(err, text);
+      expect(parsed.line).toBe(3);
+      expect(parsed.column).toBe(5);
+      expect(parsed.message).toBe("Expected ',' or '}' after property value in JSON at position 123");
+    });
+
+    it("should parse Firefox error line/column format", () => {
+      const errorMsg = "JSON.parse: unexpected non-whitespace character after JSON data at line 9 column 5 of the JSON data";
+      const err = new Error(errorMsg);
+      const parsed = parseJSONError(err, "");
+      expect(parsed.line).toBe(9);
+      expect(parsed.column).toBe(5);
+      expect(parsed.message).toBe(errorMsg);
+    });
+
+    it("should respect error properties if they exist", () => {
+      const err = {
+        message: "JSON Parse error: Expected '}'",
+        lineNumber: 12,
+        columnNumber: 4,
+      };
+      const parsed = parseJSONError(err, "");
+      expect(parsed.line).toBe(12);
+      expect(parsed.column).toBe(4);
+    });
+
+    it("should parse unexpected end of input format", () => {
+      const text = '{\n  "name": "John"';
+      const errorMsg = "Unexpected end of JSON input";
+      const err = new Error(errorMsg);
+      const parsed = parseJSONError(err, text);
+      expect(parsed.line).toBe(2);
+      expect(parsed.column).toBe(17);
     });
   });
 });

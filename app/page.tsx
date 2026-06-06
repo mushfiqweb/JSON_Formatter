@@ -13,7 +13,8 @@ import {
   convertJSONToCSV,
   escapeJSONString,
   unescapeJSONString,
-  decodeJWTOrBase64
+  decodeJWTOrBase64,
+  parseJSONError,
 } from "@/utils/jsonUtils";
 import {
   jsonToTypeScript,
@@ -79,6 +80,7 @@ export default function HomePage() {
     queryInput,
     decoderInput,
     targetLanguage,
+    systemWarning,
     setRawInput,
     setIndent,
     setViewMode,
@@ -350,7 +352,14 @@ export default function HomePage() {
               throw err;
             }
           } catch (repairErr: any) {
-            setError(`Failed to parse or repair: ${err.message}.`);
+            const parsedErr = parseJSONError(err, value);
+            let displayError = "";
+            if (parsedErr.line !== undefined && parsedErr.column !== undefined) {
+              displayError = `Error at Line ${parsedErr.line}, Col ${parsedErr.column}: ${parsedErr.message}`;
+            } else {
+              displayError = `Failed to parse or repair: ${parsedErr.message}`;
+            }
+            setError(displayError);
             setLoading(false);
             return;
           }
@@ -370,7 +379,14 @@ export default function HomePage() {
           repairError: repairErr,
         });
       } catch (err: any) {
-        setError(err.message || "Failed to process JSON.");
+        const parsedErr = parseJSONError(err, value);
+        let displayError = "";
+        if (parsedErr.line !== undefined && parsedErr.column !== undefined) {
+          displayError = `Error at Line ${parsedErr.line}, Col ${parsedErr.column}: ${parsedErr.message}`;
+        } else {
+          displayError = parsedErr.message || "Failed to process JSON.";
+        }
+        setError(displayError);
         setLoading(false);
       }
     }, 0);
@@ -583,6 +599,22 @@ export default function HomePage() {
           </div>
 
         </button>
+
+        {/* Central Notification Area */}
+        <div className="flex-1 flex justify-center items-center px-4">
+          {systemWarning && (
+            <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 backdrop-blur-md shadow-lg shadow-amber-500/5 animate-in fade-in slide-in-from-top-2 duration-300">
+              <span className="relative flex h-2 w-2 mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <span className="text-amber-400 text-[11px] font-semibold tracking-wide uppercase">
+                {systemWarning}
+              </span>
+            </div>
+          )}
+        </div>
+
         {/* Action Button Bar */}
         <div className="flex items-center space-x-1 sm:space-x-2">
           <button
@@ -630,15 +662,17 @@ export default function HomePage() {
             <Trash2 size={15} />
           </button>
 
-          <button
-            onClick={() => setIsShareModalOpen(true)}
-            disabled={!rawInput.trim() || !!error}
-            className="flex items-center space-x-1.5 px-3 sm:px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
-            aria-label="Share encrypted JSON"
-          >
-            <Share2 size={13} />
-            <span className="hidden sm:inline">Share</span>
-          </button>
+          <div title={systemWarning || "Share encrypted JSON"}>
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              disabled={!rawInput.trim() || !!error || !!systemWarning}
+              className="flex items-center space-x-1.5 px-3 sm:px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+              aria-label="Share encrypted JSON"
+            >
+              <Share2 size={13} />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -820,25 +854,38 @@ export default function HomePage() {
               <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none md:hidden"></div>
             </div>
 
-            {/* Copy Tab Content */}
-            {rawInput.trim() && !error && (
-              <button
-                onClick={handleCopy}
-                className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-cyan-500/30 text-xs text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900/50 transition-all cursor-pointer flex-shrink-0"
-              >
-                {copyStatus === "copied" ? (
-                  <>
-                    <Check size={12} className="text-emerald-400" />
-                    <span className="text-emerald-400">Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy size={12} />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* Output Panel Actions */}
+            <div className="flex items-center space-x-2 flex-shrink-0">
+              {rawInput.trim() && !error && (
+                <button
+                  onClick={handleCopy}
+                  className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-cyan-500/30 text-xs text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900/50 transition-all cursor-pointer flex-shrink-0"
+                >
+                  {copyStatus === "copied" ? (
+                    <>
+                      <Check size={12} className="text-emerald-400" />
+                      <span className="text-emerald-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={12} />
+                      <span>Copy</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {rawInput.trim() && (
+                <button
+                  onClick={clearAll}
+                  className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-red-500/30 text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-900/50 transition-all cursor-pointer flex-shrink-0"
+                  title="Clear JSON from editor and local storage"
+                >
+                  <Trash2 size={12} />
+                  <span>Clear</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Output Display Container */}
@@ -882,7 +929,11 @@ export default function HomePage() {
               )}
               {viewMode === "yaml" && (
                 <pre className="w-full h-full p-4 overflow-auto font-mono text-xs text-cyan-400 bg-zinc-950 whitespace-pre-wrap select-text leading-5">
-                  {parsedJSON ? YAML.stringify(parsedJSON) : (
+                  {systemWarning ? (
+                    <span className="text-amber-500 block text-center mt-10">
+                      ⚠️ YAML generation is disabled for payloads over 1.5MB to prevent the browser from freezing.
+                    </span>
+                  ) : parsedJSON ? YAML.stringify(parsedJSON) : (
                     <span className="text-zinc-600 italic">No converted YAML payload ready.</span>
                   )}
                 </pre>
