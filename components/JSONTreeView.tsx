@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
 
+
 interface JSONTreeViewProps {
   data: any;
 }
@@ -38,6 +39,7 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
   const type = typeof value;
   const isObject = value !== null && type === "object";
   const isArray = Array.isArray(value);
+  const keyColorClass = isObject ? "text-sky-400" : "text-zinc-300";
 
   const copyNodeValue = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -68,7 +70,7 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
     return (
       <div className="flex items-start py-0.5 hover:bg-zinc-900/50 rounded px-1 group transition-colors duration-100">
         <span className="text-zinc-500 select-none mr-2">{"  ".repeat(depth)}</span>
-        <span className="text-sky-400 font-semibold mr-1">
+        <span className={`${keyColorClass} font-semibold mr-1`}>
           {typeof name === "number" ? name : `"${name}"`}
         </span>
         <span className="text-zinc-600 mr-2 select-none">:</span>
@@ -105,7 +107,7 @@ function TreeNode({ name, value, depth, isLast }: TreeNodeProps) {
         {/* Key name */}
         {name !== "root" && (
           <>
-            <span className="text-sky-400 font-semibold mr-1">
+            <span className={`${keyColorClass} font-semibold mr-1`}>
               {typeof name === "number" ? name : `"${name}"`}
             </span>
             <span className="text-zinc-600 mr-2 select-none">:</span>
