@@ -50,7 +50,10 @@ import {
   Search,
   Braces,
   Quote,
-  Key
+  Key,
+  History,
+  Eye,
+  Clock
 } from "lucide-react";
 
 // Dynamically import Monaco Editor to avoid SSR errors
@@ -81,6 +84,8 @@ export default function HomePage() {
     decoderInput,
     targetLanguage,
     systemWarning,
+    activeShareId,
+    isHistoryModalOpen,
     setRawInput,
     setIndent,
     setViewMode,
@@ -92,6 +97,8 @@ export default function HomePage() {
     setQueryInput,
     setDecoderInput,
     setTargetLanguage,
+    setHistoryModalOpen,
+    removeFromHistory,
     setAnalysisResults,
   } = useJSONStore();
 
@@ -102,6 +109,10 @@ export default function HomePage() {
   const [isSharing, setIsSharing] = useState(false);
   const [shareLink, setShareLink] = useState("");
   const [shareError, setShareError] = useState("");
+  const [isDeleteShareModalOpen, setIsDeleteShareModalOpen] = useState(false);
+  const [isDeletingShare, setIsDeletingShare] = useState(false);
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rightPaneRef = useRef<HTMLElement | null>(null);
@@ -449,6 +460,112 @@ export default function HomePage() {
     triggerImmediateAction();
   };
 
+  const handleTrashClick = () => {
+    if (activeShareId) {
+      setIsDeleteShareModalOpen(true);
+    } else {
+      clearAll();
+    }
+  };
+
+  const executeCloudDelete = async () => {
+    if (!activeShareId) return;
+    setIsDeletingShare(true);
+    setShareError("");
+
+    try {
+      const historyStr = localStorage.getItem("json_formatter_history");
+      const history = historyStr ? JSON.parse(historyStr) : [];
+      const item = history.find((h: any) => h.id === activeShareId);
+      
+      if (!item) {
+        throw new Error("You do not own this snippet. Local token missing.");
+      }
+
+      const { error } = await supabaseClient
+        .from("json_formatter_snippets")
+        .delete()
+        .eq("id", activeShareId)
+        .eq("creator_token", item.token);
+
+      if (error) throw new Error(error.message);
+
+      removeFromHistory(activeShareId);
+      clearAll();
+      setIsDeleteShareModalOpen(false);
+      window.location.href = "/"; // Navigate cleanly away from /share route
+    } catch (err: any) {
+      setShareError(err.message);
+    } finally {
+      setIsDeletingShare(false);
+    }
+  };
+
+  const loadHistoryData = async () => {
+    const historyStr = localStorage.getItem("json_formatter_history");
+    if (!historyStr) {
+      setHistoryData([]);
+      return;
+    }
+    const history = JSON.parse(historyStr);
+    if (history.length === 0) {
+      setHistoryData([]);
+      return;
+    }
+
+    setIsHistoryLoading(true);
+    try {
+      const ids = history.map((h: any) => h.id);
+      const { data, error } = await supabaseClient
+        .from("json_formatter_snippets")
+        .select()
+        .in("id", ids);
+
+      if (!error && data) {
+        // Merge local tokens with live data
+        const enriched = data.map((d: any) => {
+          const localItem = history.find((h: any) => h.id === d.id);
+          return {
+            ...d,
+            token: localItem?.token,
+            local_created_at: localItem?.created_at
+          };
+        });
+        // Sort by local created descending
+        enriched.sort((a: any, b: any) => new Date(b.local_created_at).getTime() - new Date(a.local_created_at).getTime());
+        setHistoryData(enriched);
+      }
+    } catch (err) {
+      console.error("Failed to load history data", err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isHistoryModalOpen) {
+      loadHistoryData();
+    }
+  }, [isHistoryModalOpen]);
+
+  const executeHistoryDelete = async (id: string, token: string) => {
+    try {
+      await supabaseClient
+        .from("json_formatter_snippets")
+        .delete()
+        .eq("id", id)
+        .eq("creator_token", token);
+      
+      removeFromHistory(id);
+      setHistoryData((prev) => prev.filter((item) => item.id !== id));
+      if (activeShareId === id) {
+         window.location.href = "/";
+      }
+    } catch (err) {
+      console.error("Failed to delete snippet", err);
+    }
+  };
+
   const handleMinify = () => {
     setViewMode("formatted");
     triggerImmediateAction();
@@ -511,8 +628,10 @@ export default function HomePage() {
 
       // 1. Client-Side Encryption
       const { ciphertext, iv, keyStr } = await encryptJSON(payload);
+      
+      const creator_token = typeof window !== "undefined" ? window.crypto.randomUUID() : "client-token";
 
-      // 2. Upload only encrypted ciphertext and IV to Supabase
+      // 2. Upload only encrypted ciphertext, IV and creator_token to Supabase
       const { data, error: dbError } = await supabaseClient
         .from("json_formatter_snippets")
         .insert([
@@ -520,6 +639,7 @@ export default function HomePage() {
             encrypted_content: ciphertext,
             iv: iv,
             language: "json",
+            creator_token: creator_token,
           },
         ])
         .select();
@@ -537,6 +657,13 @@ export default function HomePage() {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const shareUrl = `${origin}/share/${id}#key=${keyStr}`;
       setShareLink(shareUrl);
+      
+      // 4. Save to Local History for Dashboard
+      // Prefer server returned token if trigger exists, else use our generated one
+      const token = data?.[0]?.creator_token || creator_token;
+      if (token) {
+        useJSONStore.getState().addToHistory(id, token);
+      }
     } catch (err: any) {
       console.error(err);
       setShareError(`Sharing failed: ${err.message}`);
@@ -653,13 +780,25 @@ export default function HomePage() {
           <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
 
           <button
-            onClick={clearAll}
+            onClick={() => setHistoryModalOpen(true)}
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer"
+            title="My Shared Snippets"
+            aria-label="View history of shared snippets"
+          >
+            <History size={13} />
+            <span className="hidden md:inline">History</span>
+          </button>
+
+          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
+
+          <button
+            onClick={handleTrashClick}
             disabled={!rawInput}
             className="p-2 rounded-md hover:bg-zinc-900 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Clear all inputs"
+            title={activeShareId ? "Delete Shared Snippet" : "Clear all inputs"}
             aria-label="Clear raw workspace inputs"
           >
-            <Trash2 size={15} />
+            <Trash2 size={15} className={activeShareId ? "text-red-400" : ""} />
           </button>
 
           <div title={systemWarning || "Share encrypted JSON"}>
@@ -1303,6 +1442,185 @@ export default function HomePage() {
                   )}
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Shared Snippet Modal */}
+      {isDeleteShareModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm select-none animate-fade-in">
+          <div className="w-[calc(100%-2rem)] max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden p-5 sm:p-6 relative mx-4">
+            <h3 className="text-base font-semibold text-zinc-100 flex items-center space-x-2">
+              <Trash2 size={16} className="text-red-500" />
+              <span>Delete Shared Snippet</span>
+            </h3>
+
+            <p className="mt-3 text-xs text-zinc-400 leading-relaxed font-sans">
+              You are viewing a shared snippet from the cloud.
+            </p>
+
+            {(() => {
+              const historyStr = localStorage.getItem("json_formatter_history");
+              const history = historyStr ? JSON.parse(historyStr) : [];
+              const isOwner = history.some((h: any) => h.id === activeShareId);
+              
+              return (
+                <div className="mt-4">
+                  {isOwner ? (
+                    <div className="bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg p-4 text-xs">
+                      <p className="font-semibold mb-1 text-red-300">You are the Creator of this snippet.</p>
+                      <p>Do you want to permanently delete it from the cloud server? This action cannot be undone.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-amber-950/20 border border-amber-900/30 text-amber-400 rounded-lg p-4 text-xs">
+                      <p className="font-semibold mb-1 text-amber-300">You are a Viewer of this snippet.</p>
+                      <p>You do not have the creator token to delete this from the cloud. You can only clear your local screen.</p>
+                    </div>
+                  )}
+
+                  {shareError && (
+                    <div className="mt-4 bg-red-950/20 border border-red-900/30 text-red-400 rounded-lg p-3 text-xs font-mono">
+                      {shareError}
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex flex-col space-y-2 text-xs">
+                    {isOwner && (
+                      <button
+                        onClick={executeCloudDelete}
+                        disabled={isDeletingShare}
+                        className="w-full py-2.5 bg-red-900/60 hover:bg-red-800 border border-red-800/50 text-white rounded-md font-medium flex items-center justify-center space-x-2 transition-all cursor-pointer disabled:opacity-40"
+                      >
+                        {isDeletingShare ? (
+                          <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                        <span>Delete from Cloud</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        clearAll();
+                        setIsDeleteShareModalOpen(false);
+                        window.location.href = "/";
+                      }}
+                      disabled={isDeletingShare}
+                      className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-md font-medium transition-all cursor-pointer"
+                    >
+                      Clear Local Editor Only
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsDeleteShareModalOpen(false);
+                        setShareError("");
+                      }}
+                      disabled={isDeletingShare}
+                      className="w-full py-2 border border-zinc-800 hover:bg-zinc-850 text-zinc-400 hover:text-zinc-300 rounded-md transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* History Dashboard Modal */}
+      {isHistoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm select-none animate-fade-in">
+          <div className="w-full max-w-2xl max-h-[85vh] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl flex flex-col mx-4 overflow-hidden">
+            
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md">
+              <h3 className="text-base font-semibold text-zinc-100 flex items-center space-x-2">
+                <History size={18} className="text-cyan-500" />
+                <span>My Shared Snippets</span>
+              </h3>
+              <button 
+                onClick={() => setHistoryModalOpen(false)}
+                className="text-zinc-500 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {isHistoryLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500 mb-4"></div>
+                  <p className="text-sm">Fetching analytics from cloud...</p>
+                </div>
+              ) : historyData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="h-16 w-16 bg-zinc-800/50 rounded-full flex items-center justify-center mb-4">
+                    <History size={24} className="text-zinc-600" />
+                  </div>
+                  <p className="text-zinc-400 text-sm">You haven't shared any snippets from this browser yet.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {historyData.map((item) => (
+                    <div key={item.id} className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between transition-colors group">
+                      
+                      <div className="mb-3 sm:mb-0">
+                        <div className="flex items-center space-x-2 mb-1.5">
+                          <span className="text-xs font-mono text-cyan-400 font-semibold">{item.id.split("-")[0]}...</span>
+                          <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+                            {new Date(item.local_created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500 font-mono">
+                          <div className="flex items-center space-x-1.5">
+                            <Eye size={12} className={item.views_count > 0 ? "text-emerald-400" : ""} />
+                            <span>{item.views_count} view{item.views_count !== 1 && 's'}</span>
+                          </div>
+                          <div className="flex items-center space-x-1.5">
+                            <Clock size={12} />
+                            <span>{item.last_viewed_at ? new Date(item.last_viewed_at).toLocaleString() : 'Never'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2">
+                        <a 
+                          href={`/share/${item.id}`}
+                          onClick={(e) => {
+                             if (activeShareId === item.id) {
+                               e.preventDefault();
+                               setHistoryModalOpen(false);
+                             }
+                          }}
+                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded transition-colors cursor-pointer text-center"
+                        >
+                          View
+                        </a>
+                        <button
+                          onClick={() => {
+                            if(window.confirm("Permanently delete this snippet from the cloud?")) {
+                              executeHistoryDelete(item.id, item.token);
+                            }
+                          }}
+                          className="px-2 py-1.5 border border-red-900/30 text-red-400 hover:bg-red-950/40 rounded transition-colors cursor-pointer"
+                          title="Delete from Cloud"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-zinc-800 bg-zinc-900/50 text-center">
+               <p className="text-[10px] text-zinc-500 max-w-sm mx-auto leading-relaxed">
+                 History is tied to this browser device via an anonymous ownership token. Clearing local storage will result in loss of access to these snippets.
+               </p>
             </div>
           </div>
         </div>

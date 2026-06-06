@@ -63,7 +63,23 @@ export default function SharePage({ params }: SharePageProps) {
 
         // 4. Load the decrypted content into the workspace state store
         setRawInput(decryptedPayload);
+        useJSONStore.getState().setActiveShareId(id);
         setStatus("decrypted");
+
+        // 5. Track View Analytics in Background
+        const viewKey = `viewed_snippet_${id}`;
+        const hasViewed = !!localStorage.getItem(viewKey);
+        
+        supabaseClient.rpc("track_snippet_view", { 
+          snippet_id: id, 
+          is_unique: !hasViewed 
+        }).then(({error}) => {
+          if (error) {
+            console.error("Failed to track view:", error.message);
+          } else if (!hasViewed) {
+            localStorage.setItem(viewKey, "true");
+          }
+        });
       } catch (err: any) {
         console.error(err);
         setErrorMessage(err.message || "Failed to load and decrypt snippet.");

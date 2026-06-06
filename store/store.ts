@@ -23,6 +23,12 @@ export interface JSONMetrics {
   maxDepth: number;
 }
 
+export interface HistoryItem {
+  id: string;
+  token: string;
+  created_at: string;
+}
+
 interface JSONFormatterState {
   rawInput: string;
   formattedOutput: string;
@@ -47,6 +53,8 @@ interface JSONFormatterState {
   decoderInput: string;
   targetLanguage: CodeLanguage;
   systemWarning: string | null;
+  activeShareId: string | null;
+  isHistoryModalOpen: boolean;
 
   // Actions
   setRawInput: (input: string) => void;
@@ -62,6 +70,10 @@ interface JSONFormatterState {
   setDecoderInput: (decoderInput: string) => void;
   setTargetLanguage: (targetLanguage: CodeLanguage) => void;
   setSystemWarning: (warning: string | null) => void;
+  setActiveShareId: (id: string | null) => void;
+  setHistoryModalOpen: (isOpen: boolean) => void;
+  addToHistory: (id: string, token: string) => void;
+  removeFromHistory: (id: string) => void;
   setAnalysisResults: (results: {
     formatted: string;
     minified: string;
@@ -98,6 +110,8 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
   decoderInput: "",
   targetLanguage: "typescript",
   systemWarning: null,
+  activeShareId: null,
+  isHistoryModalOpen: false,
 
   setRawInput: (input) => {
     let warningMsg: string | null = null;
@@ -132,6 +146,29 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
   setDecoderInput: (decoderInput) => set({ decoderInput }),
   setTargetLanguage: (targetLanguage) => set({ targetLanguage }),
   setSystemWarning: (warning) => set({ systemWarning: warning }),
+  setActiveShareId: (id) => set({ activeShareId: id }),
+  setHistoryModalOpen: (isOpen) => set({ isHistoryModalOpen: isOpen }),
+
+  addToHistory: (id, token) => {
+    if (typeof window !== "undefined") {
+      const historyStr = localStorage.getItem("json_formatter_history");
+      const history: HistoryItem[] = historyStr ? JSON.parse(historyStr) : [];
+      // Keep only last 50
+      const newHistory = [{ id, token, created_at: new Date().toISOString() }, ...history.filter(h => h.id !== id)].slice(0, 50);
+      localStorage.setItem("json_formatter_history", JSON.stringify(newHistory));
+    }
+  },
+
+  removeFromHistory: (id) => {
+    if (typeof window !== "undefined") {
+      const historyStr = localStorage.getItem("json_formatter_history");
+      if (historyStr) {
+        const history: HistoryItem[] = JSON.parse(historyStr);
+        const newHistory = history.filter((h) => h.id !== id);
+        localStorage.setItem("json_formatter_history", JSON.stringify(newHistory));
+      }
+    }
+  },
 
   clearAll: () => {
     if (typeof window !== "undefined") {
@@ -156,6 +193,7 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
       queryInput: "",
       decoderInput: "",
       systemWarning: null,
+      activeShareId: null,
     });
   },
 
