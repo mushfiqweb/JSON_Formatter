@@ -106,6 +106,7 @@ export default function HomePage() {
   const [leftWidth, setLeftWidth] = useState<number>(30); // 30% default width
   const [isResizing, setIsResizing] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"input" | "output">("input");
 
   // New developer utilities local states and triggers
   const [schemaError, setSchemaError] = useState<string | null>(null);
@@ -539,7 +540,7 @@ export default function HomePage() {
 
 
   return (
-    <div className="flex-1 flex flex-col bg-zinc-950 text-zinc-100 font-sans min-h-screen lg:h-screen lg:overflow-hidden">
+    <div className="flex flex-col bg-zinc-950 text-zinc-100 font-sans h-dvh overflow-hidden">
       {/* JSON-LD Structured Data for Search Engine Rich Cards */}
       <script
         type="application/ld+json"
@@ -583,12 +584,13 @@ export default function HomePage() {
 
         </button>
         {/* Action Button Bar */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <button
             onClick={handleFormat}
             disabled={!rawInput.trim()}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-cyan-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-cyan-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Parse and format JSON"
+            aria-label="Format JSON payload"
           >
             <AlignLeft size={13} />
             <span className="hidden md:inline">Format</span>
@@ -597,8 +599,9 @@ export default function HomePage() {
           <button
             onClick={handleMinify}
             disabled={!rawInput.trim()}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md border border-zinc-850 hover:border-violet-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-violet-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-violet-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-violet-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Minify JSON"
+            aria-label="Minify JSON payload"
           >
             <Minimize2 size={13} />
             <span className="hidden md:inline">Minify</span>
@@ -607,20 +610,22 @@ export default function HomePage() {
           <button
             onClick={handleRepair}
             disabled={!rawInput.trim()}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md border border-zinc-850 hover:border-pink-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-pink-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-zinc-850 hover:border-pink-500/30 bg-zinc-900/50 hover:bg-zinc-900 text-xs text-zinc-300 hover:text-pink-400 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             title="Auto-repair LLM/malformed JSON"
+            aria-label="Auto repair malformed JSON syntax"
           >
             <Sparkles size={13} className="text-pink-500" />
             <span className="hidden md:inline">Auto-Repair</span>
           </button>
 
-          <div className="w-px h-5 bg-zinc-800 my-auto mx-1"></div>
+          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
 
           <button
             onClick={clearAll}
             disabled={!rawInput}
             className="p-2 rounded-md hover:bg-zinc-900 text-zinc-500 hover:text-red-400 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
             title="Clear all inputs"
+            aria-label="Clear raw workspace inputs"
           >
             <Trash2 size={15} />
           </button>
@@ -628,20 +633,76 @@ export default function HomePage() {
           <button
             onClick={() => setIsShareModalOpen(true)}
             disabled={!rawInput.trim() || !!error}
-            className="flex items-center space-x-1.5 px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            className="flex items-center space-x-1.5 px-3 sm:px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
+            aria-label="Share encrypted JSON"
           >
             <Share2 size={13} />
-            <span>Share</span>
+            <span className="hidden sm:inline">Share</span>
           </button>
         </div>
       </header>
 
+      {/* Mobile Tab Switcher */}
+      <div className="lg:hidden w-full px-4 pt-3 pb-1 flex-shrink-0 select-none bg-zinc-950">
+        <div className="flex w-full bg-zinc-900/40 p-1 rounded-lg border border-zinc-900">
+          <button
+            onClick={() => setMobileTab("input")}
+            className={`flex-1 flex items-center justify-center space-x-1.5 py-2.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
+              mobileTab === "input"
+                ? "bg-zinc-800 text-cyan-400 shadow"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+            aria-label="Switch to Input Panel"
+          >
+            <Code size={14} />
+            <span>Input JSON</span>
+            {rawInput.trim() && (
+              <span className="text-[10px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded font-mono">
+                {formatBytes(new Blob([rawInput]).size)}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setMobileTab("output")}
+            className={`flex-grow flex-1 flex items-center justify-center space-x-1.5 py-2.5 rounded-md text-xs font-semibold tracking-wide transition-all duration-200 relative cursor-pointer ${
+              mobileTab === "output"
+                ? "bg-zinc-800 text-cyan-400 shadow"
+                : "text-zinc-400 hover:text-zinc-200"
+            }`}
+            aria-label="Switch to Output Panel"
+          >
+            <Braces size={14} />
+            <span>Output View</span>
+            {/* Status Ping Indicator */}
+            {rawInput.trim() && (
+              <span className="absolute top-2.5 right-3 flex h-2 w-2">
+                {error ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </>
+                ) : repaired ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </>
+                ) : (
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                )}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Main Dual-Pane Section */}
-      <main ref={containerRef} className="flex-1 flex flex-col lg:flex-row p-6 lg:pt-6 lg:pb-2 gap-0 overflow-hidden max-w-full">
+      <main ref={containerRef} className="flex-grow flex flex-col lg:flex-row p-3 lg:p-6 lg:pt-6 lg:pb-2 gap-0 overflow-hidden min-h-0 w-full max-w-full">
 
         {/* Left Pane - Input Staging Editor Area */}
         <section
-          className="flex flex-col h-[450px] lg:h-[calc(100vh-135px)] min-h-[300px]"
+          className={`flex-col h-full min-h-0 ${
+            isDesktop || mobileTab === "input" ? "flex" : "hidden"
+          }`}
           style={{ width: isDesktop ? `${leftWidth}%` : "100%" }}
         >
           <div className="flex items-center justify-between mb-2 px-1 select-none">
@@ -677,24 +738,24 @@ export default function HomePage() {
 
           {/* Footer Metrics Status Bar (Subtle, VS Code Style) */}
           <footer className="h-7 border border-t-0 border-zinc-800/80 bg-zinc-950 rounded-b-lg flex items-center justify-between px-3 text-[11px] font-mono text-zinc-500 select-none">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 overflow-x-auto scrollbar-none flex-nowrap mr-2">
               {metrics ? (
                 <>
-                  <span title="File size in bytes">{formatBytes(metrics.sizeBytes)}</span>
-                  <span className="w-px h-3 bg-zinc-800"></span>
-                  <span title="Total key-value counts">{metrics.keyCount} keys</span>
-                  <span className="w-px h-3 bg-zinc-800"></span>
-                  <span title="Total array structures">{metrics.arrayCount} arrays</span>
-                  <span className="w-px h-3 bg-zinc-800"></span>
-                  <span title="Total AST Nodes (Primitives + Objects + Arrays)">{metrics.nodeCount} nodes</span>
-                  <span className="w-px h-3 bg-zinc-800"></span>
-                  <span title="Maximum Nesting Depth">depth: {metrics.maxDepth}</span>
+                  <span className="flex-shrink-0" title="File size in bytes">{formatBytes(metrics.sizeBytes)}</span>
+                  <span className="w-px h-3 bg-zinc-800 flex-shrink-0"></span>
+                  <span className="flex-shrink-0" title="Total key-value counts">{metrics.keyCount} keys</span>
+                  <span className="w-px h-3 bg-zinc-800 flex-shrink-0"></span>
+                  <span className="flex-shrink-0" title="Total array structures">{metrics.arrayCount} arrays</span>
+                  <span className="w-px h-3 bg-zinc-800 flex-shrink-0"></span>
+                  <span className="flex-shrink-0" title="Total AST Nodes (Primitives + Objects + Arrays)">{metrics.nodeCount} nodes</span>
+                  <span className="w-px h-3 bg-zinc-800 flex-shrink-0"></span>
+                  <span className="flex-shrink-0" title="Maximum Nesting Depth">depth: {metrics.maxDepth}</span>
                 </>
               ) : (
-                <span>Empty Payload</span>
+                <span className="flex-shrink-0">Empty Payload</span>
               )}
             </div>
-            <div>
+            <div className="flex-shrink-0">
               <span>Ln {cursorLine}, Col {cursorCol}</span>
             </div>
           </footer>
@@ -703,7 +764,7 @@ export default function HomePage() {
         {/* Resizable Divider Handle */}
         <div
           onMouseDown={handleMouseDown}
-          className="hidden lg:flex w-4 items-center justify-center cursor-col-resize hover:bg-cyan-500/5 select-none relative group transition-colors duration-150 h-[calc(100vh-135px)] min-h-[300px]"
+          className="hidden lg:flex w-4 items-center justify-center cursor-col-resize hover:bg-cyan-500/5 select-none relative group transition-colors duration-150 h-full min-h-0"
           role="separator"
           aria-label="Panel Splitter"
         >
@@ -716,47 +777,54 @@ export default function HomePage() {
         {/* Right Pane - Output Viewer / Transformation Tab Area */}
         <section
           ref={rightPaneRef}
-          className={`relative flex flex-col bg-zinc-950 transition-all ${isFullscreen
-            ? "w-full h-full p-6"
-            : "h-[450px] lg:h-[calc(100vh-135px)] min-h-[300px]"
-            }`}
+          className={`relative flex-col bg-zinc-950 transition-all ${
+            isDesktop || mobileTab === "output" ? "flex" : "hidden"
+          } ${
+            isFullscreen
+              ? "w-full h-full p-6"
+              : "h-full min-h-0"
+          }`}
           style={isFullscreen ? {} : { width: isDesktop ? `${100 - leftWidth}%` : "100%" }}
         >
           {/* Tab Navigation */}
           <div className="flex items-center justify-between mb-2 min-h-6 overflow-hidden max-w-full select-none">
-            <div className="flex space-x-1 p-0.5 bg-zinc-900/50 border border-zinc-900 rounded-lg overflow-x-auto scrollbar-none max-w-full flex-nowrap w-full mr-2">
-              {[
-                { id: "formatted", label: "Formatted", icon: <Code size={13} /> },
-                { id: "tree", label: "Tree", icon: <TreeDeciduous size={13} /> },
-                { id: "yaml", label: "YAML", icon: <FileCode size={13} /> },
-                { id: "xml", label: "XML", icon: <FileCode size={13} /> },
-                { id: "csv", label: "CSV", icon: <Table size={13} /> },
-                { id: "types", label: "Types", icon: <FileCode size={13} /> },
-                { id: "schema", label: "Schema", icon: <Braces size={13} /> },
-                { id: "query", label: "Query", icon: <Search size={13} /> },
-                { id: "diff", label: "Diff", icon: <GitCompare size={13} /> },
-                { id: "escaped", label: "Escaped", icon: <Quote size={13} /> },
-                { id: "decoder", label: "JWT/B64", icon: <Key size={13} /> },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setViewMode(tab.id as ViewMode)}
-                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium tracking-wide transition-all cursor-pointer flex-shrink-0 ${viewMode === tab.id
-                    ? "bg-zinc-800 text-cyan-400 font-semibold"
-                    : "text-zinc-400 hover:text-zinc-200"
-                    }`}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                </button>
-              ))}
+            <div className="relative flex-grow mr-2 overflow-hidden">
+              <div className="flex space-x-1 p-0.5 bg-zinc-900/50 border border-zinc-900 rounded-lg overflow-x-auto scrollbar-none flex-nowrap w-full">
+                {[
+                  { id: "formatted", label: "Formatted", icon: <Code size={13} /> },
+                  { id: "tree", label: "Tree", icon: <TreeDeciduous size={13} /> },
+                  { id: "yaml", label: "YAML", icon: <FileCode size={13} /> },
+                  { id: "xml", label: "XML", icon: <FileCode size={13} /> },
+                  { id: "csv", label: "CSV", icon: <Table size={13} /> },
+                  { id: "types", label: "Types", icon: <FileCode size={13} /> },
+                  { id: "schema", label: "Schema", icon: <Braces size={13} /> },
+                  { id: "query", label: "Query", icon: <Search size={13} /> },
+                  { id: "diff", label: "Diff", icon: <GitCompare size={13} /> },
+                  { id: "escaped", label: "Escaped", icon: <Quote size={13} /> },
+                  { id: "decoder", label: "JWT/B64", icon: <Key size={13} /> },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setViewMode(tab.id as ViewMode)}
+                    className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-md text-xs font-medium tracking-wide transition-all cursor-pointer flex-shrink-0 ${viewMode === tab.id
+                      ? "bg-zinc-800 text-cyan-400 font-semibold"
+                      : "text-zinc-400 hover:text-zinc-200"
+                      }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+              {/* Fade out mask at the right edge to indicate horizontal scroll */}
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none md:hidden"></div>
             </div>
 
             {/* Copy Tab Content */}
             {rawInput.trim() && !error && (
               <button
                 onClick={handleCopy}
-                className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-cyan-500/30 text-xs text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900/50 transition-all cursor-pointer"
+                className="flex items-center space-x-1 px-3 py-1 rounded border border-zinc-850 hover:border-cyan-500/30 text-xs text-zinc-400 hover:text-cyan-400 hover:bg-zinc-900/50 transition-all cursor-pointer flex-shrink-0"
               >
                 {copyStatus === "copied" ? (
                   <>
@@ -1096,7 +1164,7 @@ export default function HomePage() {
       {/* Share Confirmation Overlay Modal */}
       {isShareModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm select-none animate-fade-in">
-          <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden p-6 relative">
+          <div className="w-[calc(100%-2rem)] max-w-md bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden p-5 sm:p-6 relative mx-4">
             <h3 className="text-base font-semibold text-zinc-100 flex items-center space-x-2">
               <Share2 size={16} className="text-cyan-500" />
               <span>Share Encrypted Snippet</span>
@@ -1163,7 +1231,7 @@ export default function HomePage() {
                   setShareError("");
                 }}
                 disabled={isSharing}
-                className="px-4 py-2 border border-zinc-800 hover:border-zinc-700 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-40"
+                className="px-4 py-2.5 sm:py-2 border border-zinc-800 hover:border-zinc-700 bg-zinc-850 hover:bg-zinc-800 text-zinc-300 rounded-md font-medium transition-colors cursor-pointer disabled:opacity-40"
               >
                 Close
               </button>
@@ -1172,7 +1240,7 @@ export default function HomePage() {
                 <button
                   onClick={handleShareSubmit}
                   disabled={isSharing}
-                  className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 hover:shadow-md text-white rounded-md font-medium flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-40"
+                  className="px-4 py-2.5 sm:py-2 bg-cyan-600 hover:bg-cyan-500 hover:shadow-md text-white rounded-md font-medium flex items-center space-x-2 transition-all cursor-pointer disabled:opacity-40"
                 >
                   {isSharing ? (
                     <>
