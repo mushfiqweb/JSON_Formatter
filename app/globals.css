@@ -101,22 +101,10 @@ body {
 .animate-spin-slow {
   animation: spin-slow 8s linear infinite;
 }
-/* Decrease Monaco Editor Sticky Scroll font size and tightly pack line height */
+
+/* Decrease Monaco Editor Sticky Scroll keys preview font-size and line-height by 30% cleanly */
 .monaco-editor .sticky-widget {
-  display: flex !important;
-  flex-direction: column !important;
-  height: auto !important;
-  padding-bottom: 2px !important;
-}
-
-.monaco-editor .sticky-widget > div {
-  position: static !important;
-  height: 18px !important; /* Tighter line height */
-  line-height: 18px !important;
-}
-
-.monaco-editor .sticky-widget .view-line {
-  top: 0 !important;
-  font-size: 0.85em !important; /* Slightly smaller text */
-  line-height: 18px !important;
+  transform: scale(0.7) !important;
+  transform-origin: top left !important;
+  width: 142.85% !important;
 }
