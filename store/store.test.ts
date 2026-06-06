@@ -55,4 +55,10 @@ describe("JSON Store", () => {
     expect(setItemSpy).toHaveBeenCalledWith("json_formatter_raw_input", input);
     expect(removeItemSpy).toHaveBeenCalledWith("json_formatter_raw_input");
   });
+
+  it("should update and persist editorFontSize to localStorage", () => {
+    useJSONStore.getState().setEditorFontSize(18);
+    expect(useJSONStore.getState().editorFontSize).toBe(18);
+    expect(setItemSpy).toHaveBeenCalledWith("json_formatter_font_size", "18");
+  });
 });

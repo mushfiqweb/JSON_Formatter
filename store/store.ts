@@ -55,9 +55,11 @@ interface JSONFormatterState {
   systemWarning: string | null;
   activeShareId: string | null;
   isHistoryModalOpen: boolean;
+  editorFontSize: number;
 
   // Actions
   setRawInput: (input: string) => void;
+  setEditorFontSize: (size: number) => void;
   setIndent: (indent: number) => void;
   setViewMode: (mode: ViewMode) => void;
   setCursorPos: (line: number, col: number) => void;
@@ -112,6 +114,7 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
   systemWarning: null,
   activeShareId: null,
   isHistoryModalOpen: false,
+  editorFontSize: 14,
 
   setRawInput: (input) => {
     let warningMsg: string | null = null;
@@ -148,6 +151,12 @@ export const useJSONStore = create<JSONFormatterState>((set) => ({
   setSystemWarning: (warning) => set({ systemWarning: warning }),
   setActiveShareId: (id) => set({ activeShareId: id }),
   setHistoryModalOpen: (isOpen) => set({ isHistoryModalOpen: isOpen }),
+  setEditorFontSize: (size) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("json_formatter_font_size", String(size));
+    }
+    set({ editorFontSize: size });
+  },
 
   addToHistory: (id, token) => {
     if (typeof window !== "undefined") {

@@ -53,7 +53,9 @@ import {
   Key,
   History,
   Eye,
-  Clock
+  Clock,
+  Minus,
+  Plus
 } from "lucide-react";
 
 // Dynamically import Monaco Editor to avoid SSR errors
@@ -86,6 +88,7 @@ export default function HomePage() {
     systemWarning,
     activeShareId,
     isHistoryModalOpen,
+    editorFontSize,
     setRawInput,
     setIndent,
     setViewMode,
@@ -99,6 +102,7 @@ export default function HomePage() {
     setTargetLanguage,
     setHistoryModalOpen,
     removeFromHistory,
+    setEditorFontSize,
     setAnalysisResults,
   } = useJSONStore();
 
@@ -403,7 +407,7 @@ export default function HomePage() {
     }, 0);
   };
 
-  // Restore rawInput from localStorage and execute analysis on page mount
+  // Restore rawInput and editorFontSize from localStorage and execute analysis on page mount
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentInput = useJSONStore.getState().rawInput;
@@ -417,8 +421,14 @@ export default function HomePage() {
         // If rawInput was already populated (e.g. from the shared link route), format it immediately on load
         runAnalysis(currentInput);
       }
+
+      // Restore saved editor font size
+      const savedFontSize = localStorage.getItem("json_formatter_font_size");
+      if (savedFontSize) {
+        setEditorFontSize(Number(savedFontSize));
+      }
     }
-  }, [setRawInput]);
+  }, [setRawInput, setEditorFontSize]);
 
   // Lazy computation for XML and CSV formats (only computed when active)
   useEffect(() => {
@@ -791,6 +801,34 @@ export default function HomePage() {
 
           <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
 
+          {/* Dynamic Font Size Control */}
+          <div 
+            className="flex items-center space-x-1 rounded-md border border-zinc-850 bg-zinc-900/50 px-1 py-0.5" 
+            title="Adjust Editor Font Size"
+          >
+            <button
+              onClick={() => setEditorFontSize(Math.max(10, editorFontSize - 1))}
+              disabled={editorFontSize <= 10}
+              className="p-1 rounded text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800 disabled:opacity-35 disabled:hover:text-zinc-500 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-all"
+              aria-label="Decrease Font Size"
+            >
+              <Minus size={11} />
+            </button>
+            <span className="text-[10px] font-mono font-semibold text-zinc-300 px-1 select-none min-w-[40px] text-center">
+              {editorFontSize}px
+            </span>
+            <button
+              onClick={() => setEditorFontSize(Math.min(26, editorFontSize + 1))}
+              disabled={editorFontSize >= 26}
+              className="p-1 rounded text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800 disabled:opacity-35 disabled:hover:text-zinc-500 disabled:hover:bg-transparent cursor-pointer disabled:cursor-not-allowed transition-all"
+              aria-label="Increase Font Size"
+            >
+              <Plus size={11} />
+            </button>
+          </div>
+
+          <div className="w-px h-5 bg-zinc-800 my-auto mx-0.5 sm:mx-1"></div>
+
           <button
             onClick={handleTrashClick}
             disabled={!rawInput}
@@ -1067,7 +1105,10 @@ export default function HomePage() {
                 <JSONTreeView data={parsedJSON} />
               )}
               {viewMode === "yaml" && (
-                <pre className="w-full h-full p-4 overflow-auto font-mono text-xs text-cyan-400 bg-zinc-950 whitespace-pre-wrap select-text leading-5">
+                <pre 
+                  className="w-full h-full p-4 overflow-auto font-mono text-cyan-400 bg-zinc-950 whitespace-pre-wrap select-text"
+                  style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
+                >
                   {systemWarning ? (
                     <span className="text-amber-500 block text-center mt-10">
                       ⚠️ YAML generation is disabled for payloads over 1.5MB to prevent the browser from freezing.
@@ -1078,14 +1119,20 @@ export default function HomePage() {
                 </pre>
               )}
               {viewMode === "xml" && (
-                <pre className="w-full h-full p-4 overflow-auto font-mono text-xs text-emerald-400 bg-zinc-950 whitespace-pre-wrap select-text leading-5">
+                <pre 
+                  className="w-full h-full p-4 overflow-auto font-mono text-emerald-400 bg-zinc-950 whitespace-pre-wrap select-text"
+                  style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
+                >
                   {xmlOutput || (
                     <span className="text-zinc-600 italic">No converted XML payload ready.</span>
                   )}
                 </pre>
               )}
               {viewMode === "csv" && (
-                <pre className="w-full h-full p-4 overflow-auto font-mono text-xs text-amber-400 bg-zinc-950 whitespace-pre-wrap select-text leading-5">
+                <pre 
+                  className="w-full h-full p-4 overflow-auto font-mono text-amber-400 bg-zinc-950 whitespace-pre-wrap select-text"
+                  style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
+                >
                   {csvOutput || (
                     <span className="text-zinc-600 italic">No converted CSV payload ready.</span>
                   )}
@@ -1212,9 +1259,9 @@ export default function HomePage() {
                         originalEditable: false,
                         readOnly: false,
                         minimap: { enabled: false },
-                        fontSize: 14,
+                        fontSize: editorFontSize,
                         fontFamily: "var(--font-geist-mono), monospace",
-                        lineHeight: 22,
+                        lineHeight: Math.round(editorFontSize * 1.57),
                         automaticLayout: true,
                         scrollbar: {
                           vertical: "visible",
@@ -1237,7 +1284,8 @@ export default function HomePage() {
                     <textarea
                       readOnly
                       value={escapedLocal}
-                      className="w-full h-32 bg-zinc-900 border border-zinc-800 rounded p-3 text-xs text-cyan-400 font-mono outline-none select-text leading-5 resize-none"
+                      className="w-full h-32 bg-zinc-900 border border-zinc-800 rounded p-3 text-cyan-400 font-mono outline-none select-text resize-none"
+                      style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                     />
                     <button
                       onClick={() => {
@@ -1259,7 +1307,8 @@ export default function HomePage() {
                     <textarea
                       id="unescapeInput"
                       placeholder="Paste escaped string here..."
-                      className="w-full h-32 bg-zinc-900 border border-zinc-800 rounded p-3 text-xs text-zinc-300 font-mono outline-none focus:border-cyan-500 leading-5 resize-none"
+                      className="w-full h-32 bg-zinc-900 border border-zinc-800 rounded p-3 text-zinc-300 font-mono outline-none focus:border-cyan-500 resize-none"
+                      style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                     />
                     <button
                       onClick={() => {
@@ -1284,7 +1333,8 @@ export default function HomePage() {
                       value={decoderInput}
                       onChange={(e) => handleDecodeToken(e.target.value)}
                       placeholder="Paste JWT token or Base64 string here..."
-                      className="w-full h-24 bg-zinc-900 border border-zinc-800 rounded p-3 text-xs text-zinc-300 font-mono outline-none focus:border-cyan-500 leading-5 resize-none"
+                      className="w-full h-24 bg-zinc-900 border border-zinc-800 rounded p-3 text-zinc-300 font-mono outline-none focus:border-cyan-500 resize-none"
+                      style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
                     />
                   </div>
 
@@ -1299,7 +1349,10 @@ export default function HomePage() {
                           {decodedResult.isJWT && decodedResult.header && (
                             <div className="space-y-1.5">
                               <span className="text-[10px] font-bold text-pink-500 uppercase tracking-widest">JWT Header</span>
-                              <pre className="bg-zinc-900 border border-zinc-850 rounded p-3 text-xs text-pink-400 overflow-x-auto leading-5 select-text">
+                              <pre 
+                                className="bg-zinc-900 border border-zinc-850 rounded p-3 text-pink-400 overflow-x-auto select-text"
+                                style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
+                              >
                                 {JSON.stringify(decodedResult.header, null, 2)}
                               </pre>
                             </div>
@@ -1317,7 +1370,10 @@ export default function HomePage() {
                                   Load to Main Workspace
                                 </button>
                               </div>
-                              <pre className="bg-zinc-900 border border-zinc-850 rounded p-3 text-xs text-cyan-400 overflow-x-auto leading-5 select-text">
+                              <pre 
+                                className="bg-zinc-900 border border-zinc-850 rounded p-3 text-cyan-400 overflow-x-auto select-text"
+                                style={{ fontSize: `${editorFontSize}px`, lineHeight: `${Math.round(editorFontSize * 1.57)}px` }}
+                              >
                                 {decodedResult.payload
                                   ? JSON.stringify(decodedResult.payload, null, 2)
                                   : decodedResult.rawPayload}
