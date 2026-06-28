@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import ToastContainer from "@/components/ToastContainer";
 import { useJSONStore, ViewMode, CodeLanguage } from "@/store/store";
 import JSONTreeView from "@/components/JSONTreeView";
 import {
@@ -57,13 +59,33 @@ import {
   Minus,
   Plus,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  X
 } from "lucide-react";
 
 // Dynamically import Monaco Editor to avoid SSR errors
 const JSONEditor = dynamic(() => import("@/components/JSONEditor"), {
   ssr: false,
 });
+
+// Subscribe to browser network status changes using React's useSyncExternalStore
+const onlineStore = {
+  subscribe(callback: () => void) {
+    if (typeof window === "undefined") return () => { };
+    window.addEventListener("online", callback);
+    window.addEventListener("offline", callback);
+    return () => {
+      window.removeEventListener("online", callback);
+      window.removeEventListener("offline", callback);
+    };
+  },
+  getSnapshot() {
+    return typeof navigator !== "undefined" ? navigator.onLine : true;
+  },
+  getServerSnapshot() {
+    return true; // Default to true on the server
+  }
+};
 
 export default function HomePage() {
   const {
@@ -110,7 +132,10 @@ export default function HomePage() {
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const diffDisposablesRef = useRef<any[]>([]);
+  const diffEditorRef = useRef<any>(null);
 
+  const [showLandingMessage, setShowLandingMessage] = useState<boolean>(true);
+  const [starCount, setStarCount] = useState<number | null>(null);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied">("idle");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -137,6 +162,11 @@ export default function HomePage() {
   const [escapedLocal, setEscapedLocal] = useState("");
   const [visitorTime, setVisitorTime] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const isOnline = useSyncExternalStore(
+    onlineStore.subscribe,
+    onlineStore.getSnapshot,
+    onlineStore.getServerSnapshot
+  );
 
   // Sync fullscreen state
   useEffect(() => {
@@ -148,6 +178,21 @@ export default function HomePage() {
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
+  }, []);
+
+  // Fetch GitHub Star Count dynamically on mount
+  useEffect(() => {
+    fetch("https://api.github.com/repos/mushfiqweb/JSON_Formatter")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch github data");
+        return res.json();
+      })
+      .then((data) => {
+        if (data && typeof data.stargazers_count === "number") {
+          setStarCount(data.stargazers_count);
+        }
+      })
+      .catch((err) => console.error("Error fetching GitHub stars:", err));
   }, []);
 
   const toggleFullscreen = async () => {
@@ -283,6 +328,7 @@ export default function HomePage() {
   };
 
   const handleDiffEditorMount = (editor: any) => {
+    diffEditorRef.current = editor;
     const modifiedEditor = editor.getModifiedEditor();
     const disposable = modifiedEditor.onDidChangeModelContent(() => {
       setDiffInput(modifiedEditor.getValue());
@@ -335,8 +381,35 @@ export default function HomePage() {
         }
       });
       diffDisposablesRef.current = [];
+      diffEditorRef.current = null;
     }
   }, [viewMode]);
+
+  // Update diff editor options dynamically when editorFontSize changes
+  useEffect(() => {
+    if (diffEditorRef.current) {
+      diffEditorRef.current.updateOptions({
+        fontSize: editorFontSize,
+        lineHeight: Math.round(editorFontSize * 1.02),
+      });
+    }
+  }, [editorFontSize]);
+
+  // Recalculate diff editor layout when custom fonts finish loading
+  useEffect(() => {
+    if (typeof window !== "undefined" && (document as any).fonts) {
+      const handleFontsLoaded = () => {
+        if (diffEditorRef.current) {
+          diffEditorRef.current.layout();
+        }
+      };
+      (document as any).fonts.ready.then(handleFontsLoaded);
+      (document as any).fonts.addEventListener("loadingdone", handleFontsLoaded);
+      return () => {
+        (document as any).fonts.removeEventListener("loadingdone", handleFontsLoaded);
+      };
+    }
+  }, []);
 
   // Clean up debounce timeout, diff editor listeners, and suppress Monaco Canceled errors on unmount
   useEffect(() => {
@@ -353,19 +426,13 @@ export default function HomePage() {
     // 2. Intercept console.error calls directly (sometimes logged directly by Monaco core)
     const originalConsoleError = console.error;
     const patchedConsoleError = (...args: any[]) => {
-      const firstArg = args[0];
-      const errorStr = typeof firstArg === "string"
-        ? firstArg
-        : firstArg instanceof Error
-          ? firstArg.message
-          : String(firstArg || "");
+      const hasCancellation = args.some(arg => {
+        if (!arg) return false;
+        const str = String(arg.message || arg.name || arg || "");
+        return str.includes("Canceled") || str.includes("ERR Canceled");
+      });
 
-      // If it contains Monaco cancellation patterns, suppress the output
-      if (
-        errorStr.includes("Canceled: Canceled") ||
-        errorStr.includes("ERR Canceled") ||
-        errorStr === "Canceled"
-      ) {
+      if (hasCancellation) {
         return;
       }
       originalConsoleError.apply(console, args);
@@ -803,18 +870,50 @@ export default function HomePage() {
         </button>
 
         {/* Central Notification Area */}
-        <div className="flex-1 flex justify-center items-center px-4">
-          {systemWarning && (
-            <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 backdrop-blur-md shadow-lg shadow-amber-500/5 animate-in fade-in slide-in-from-top-2 duration-300">
-              <span className="relative flex h-2 w-2 mb-1 mr-1">
+        <div className="hidden sm:flex flex-1 justify-center items-center px-4">
+          {!isOnline ? (
+            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 backdrop-blur-md shadow-lg shadow-red-500/5 animate-in fade-in slide-in-from-top-2 duration-300 whitespace-nowrap">
+              <span className="relative flex h-2 w-2 flex-shrink-0 items-center justify-center mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-block rounded-full h-1.5 w-1.5 bg-red-500"></span>
+              </span>
+              <span className="text-red-400 text-[9px] font-semibold tracking-wide uppercase font-mono">
+                Offline Mode: Snippet sharing disabled
+              </span>
+            </div>
+          ) : showLandingMessage ? (
+            <div className="flex items-center space-x-3 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 backdrop-blur-md shadow-lg shadow-cyan-500/5 animate-in fade-in slide-in-from-top-2 duration-500 ease-out whitespace-nowrap">
+              <span className="relative flex h-2 w-2 flex-shrink-0 items-center justify-center mr-1">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-block rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+              </span>
+              <span className="text-cyan-400 text-[11px] font-semibold tracking-wide uppercase font-mono">
+                <span>Your data stays in your browser only</span>
+                <span className="hidden md:inline">; we don’t save it anywhere else. Expect your share.</span>
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowLandingMessage(false);
+                }}
+                className="ml-2 p-0.5 rounded-full hover:bg-cyan-500/20 text-cyan-400 hover:text-white transition-colors cursor-pointer"
+                title="Dismiss message"
+                aria-label="Dismiss landing message"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ) : systemWarning ? (
+            <div className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 backdrop-blur-md shadow-lg shadow-amber-500/5 animate-in fade-in slide-in-from-top-2 duration-300 whitespace-nowrap">
+              <span className="relative flex h-2 w-2 flex-shrink-0 items-center justify-center mr-1">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                <span className="relative inline-block rounded-full h-1.5 w-1.5 bg-amber-500"></span>
               </span>
               <span className="text-amber-400 text-[9px] font-semibold tracking-wide uppercase">
                 {systemWarning}
               </span>
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Desktop Action Button Bar */}
@@ -904,10 +1003,10 @@ export default function HomePage() {
             <Trash2 size={15} className={activeShareId ? "text-red-400" : ""} />
           </button>
 
-          <div title={systemWarning || "Share encrypted JSON"}>
+          <div title={!isOnline ? "Sharing requires an internet connection" : systemWarning || "Share encrypted JSON"}>
             <button
               onClick={() => setIsShareModalOpen(true)}
-              disabled={!rawInput.trim() || !!error || !!systemWarning}
+              disabled={!rawInput.trim() || !!error || !!systemWarning || !isOnline}
               className="flex items-center space-x-1.5 px-3 lg:px-4 py-1.5 rounded-md bg-cyan-600 hover:bg-cyan-500 hover:shadow-lg hover:shadow-cyan-500/20 text-white font-medium text-xs transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none"
               aria-label="Share encrypted JSON"
             >
@@ -1024,9 +1123,9 @@ export default function HomePage() {
                 setIsShareModalOpen(true);
                 setIsMobileMenuOpen(false);
               }}
-              disabled={!rawInput.trim() || !!error || !!systemWarning}
+              disabled={!rawInput.trim() || !!error || !!systemWarning || !isOnline}
               className="p-2 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white hover:scale-110 active:scale-95 transition-all cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed flex-shrink-0"
-              title="Share encrypted JSON"
+              title={!isOnline ? "Sharing requires an internet connection" : "Share encrypted JSON"}
               aria-label="Share"
             >
               <Share2 size={14} />
@@ -1480,8 +1579,8 @@ export default function HomePage() {
                         readOnly: false,
                         minimap: { enabled: false },
                         fontSize: editorFontSize,
-                        fontFamily: "var(--font-geist-mono), monospace",
-                        lineHeight: Math.round(editorFontSize * 1.57),
+                        fontFamily: "var(--font-mono), monospace",
+                        lineHeight: Math.round(editorFontSize * 1.02),
                         automaticLayout: true,
                         scrollbar: {
                           vertical: "visible",
@@ -1902,10 +2001,51 @@ export default function HomePage() {
         </div>
       )}
       {/* Subtle Animated Footer */}
-      <footer className="premium-footer w-full py-2 flex items-center justify-center text-[10px] font-mono text-zinc-500 select-none cursor-default flex-shrink-0 border-t border-zinc-900 bg-zinc-950">
-        <span>{visitorTime}</span>
+      <footer className="premium-footer w-full py-3.5 flex flex-col md:flex-row items-center justify-between px-6 text-[10px] font-mono text-zinc-500 select-none cursor-default flex-shrink-0 border-t border-zinc-900 bg-zinc-950 gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        {/* Left: Navigation links */}
+        <div className="flex items-center space-x-4">
+          <Link href="/faq" className="hover:text-cyan-400 transition-colors cursor-pointer">
+            FAQ
+          </Link>
+          <span className="text-zinc-850">•</span>
+          <Link href="/privacy" className="hover:text-cyan-400 transition-colors cursor-pointer font-sans select-none tracking-wide text-[10px] uppercase font-mono">
+            Privacy Policy
+          </Link>
+        </div>
+
+        {/* Center: GitHub Open Source Callout */}
+        <div className="flex items-center justify-center">
+          <a
+            href="https://github.com/mushfiqweb/JSON_Formatter"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group/github flex items-center space-x-2.5 px-3 py-1 rounded-full bg-zinc-900/50 hover:bg-cyan-500/10 border border-zinc-850 hover:border-cyan-500/30 text-zinc-400 hover:text-cyan-400 transition-all duration-300 shadow-md shadow-black/10 hover:shadow-cyan-500/5 cursor-pointer relative overflow-hidden"
+            title="Give a Star on GitHub"
+            aria-label="Give a Star on GitHub"
+          >
+            {/* Shimmer overlay effect on hover */}
+            <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent -translate-x-full group-hover/github:animate-[shimmer_1.5s_infinite]" />
+            
+            <svg className="w-3 h-3 fill-current" viewBox="0 0 16 16" aria-hidden="true">
+              <path fillRule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+            <span className="text-[10px] font-sans font-medium tracking-wide">
+              It&#39;s an open source project on GitHub. Give it a star!
+            </span>
+            <span className="text-zinc-800 group-hover/github:text-cyan-500/30 transition-colors select-none">|</span>
+            <span className="flex items-center space-x-1 font-sans text-[10px] font-semibold text-zinc-300 group-hover/github:text-cyan-300">
+              <span>★</span>
+              <span>{starCount !== null ? starCount : "Star"}</span>
+            </span>
+          </a>
+        </div>
+
+        {/* Right: Visitor time */}
+        <span className="text-right">{visitorTime}</span>
       </footer>
 
+      {/* Premium developer notifications */}
+      <ToastContainer />
     </div>
   );
 }

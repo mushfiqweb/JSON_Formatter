@@ -1,41 +1,43 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "JSONObject.OnLine - Encrypted JSON Sharer",
-  description: "Secure, client-side, zero-knowledge JSON validator, formatter, schema validator, type generator, and sharing utility platform.",
+  title: "Free Online JSON Formatter & Validator | JSONObject & Share with Encryption",
+  description: "Format, validate, and auto-repair your JSON instantly. JSONObject Online is a fast, secure JSON beautifier featuring encrypted sharing, YAML, and XML tools.",
   icons: {
     icon: "/logo-green.png",
     apple: "/logo-green.png",
   },
   keywords: [
-    "json formatter",
-    "json validator",
-    "json repair",
-    "encrypted json share",
-    "zero knowledge json",
-    "json to xml",
-    "json to csv",
-    "json to yaml",
-    "jsonpath online",
-    "json diff online",
-    "jwt decoder",
-    "json type generator",
-    "typescript interface generator",
-    "client side json formatter",
-    "secure json formatter",
-    "base64 decoder json"
+    "modern JSON formatter",
+    "ultra-fast JSON beautifier",
+    "smart JSON parser",
+    "clean JSON online",
+    "JSON tree explorer",
+    "JSON payload formatter",
+    "next-gen JSON tool",
+    "beautiful JSON viewer",
+    "developer JSON toolkit",
+    "seamless JSON parsing",
+    "fix broken JSON instantly",
+    "auto-repair JSON online",
+    "validate JSON payloads",
+    "minify JSON fast",
+    "JSON to YAML wizard",
+    "instant JSON cleaner",
+    "JWT decoder online",
+    "format JSON string",
+    "parse JSON effortlessly",
+    "debug JSON payloads",
+    "encrypted JSON sharing",
+    "secure JSON link",
+    "zero-log JSON formatter",
+    "private JSON bin",
+    "safe JSON validator",
+    "share JSON securely",
+    "end-to-end encrypted JSON",
+    "private payload sharing",
+    "secure JWT parser"
   ],
   authors: [{ name: "mushfiqweb.com", url: "https://mushfiqweb.com" }],
   creator: "mushfiqweb.com",
@@ -45,8 +47,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    title: "JSONObject.OnLine - Encrypted JSON Sharer",
-    description: "Secure, client-side, zero-knowledge JSON validator, formatter, schema validator, type generator, and sharing utility platform.",
+    title: "Free Online JSON Formatter & Validator | JSONObject & Share with Encryption",
+    description: "Format, validate, and auto-repair your JSON instantly. JSONObject Online is a fast, secure JSON beautifier featuring encrypted sharing, YAML, and XML tools.",
     url: "https://jsonobject.online",
     siteName: "JSONObject.OnLine",
     images: [
@@ -60,8 +62,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "JSONObject.OnLine - Encrypted JSON Sharer",
-    description: "Secure, client-side, zero-knowledge JSON validator, formatter, schema validator, type generator, and sharing utility platform.",
+    title: "Free Online JSON Formatter & Validator | JSONObject & Share with Encryption",
+    description: "Format, validate, and auto-repair your JSON instantly. JSONObject Online is a fast, secure JSON beautifier featuring encrypted sharing, YAML, and XML tools.",
     images: ["https://jsonobject.online/twitter-image.png"],
   },
 };
@@ -74,7 +76,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
