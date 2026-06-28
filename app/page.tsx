@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import ToastContainer from "@/components/ToastContainer";
 import { useJSONStore, ViewMode, CodeLanguage } from "@/store/store";
 import JSONTreeView from "@/components/JSONTreeView";
 import {
@@ -131,6 +132,7 @@ export default function HomePage() {
 
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const diffDisposablesRef = useRef<any[]>([]);
+  const diffEditorRef = useRef<any>(null);
 
   const [showLandingMessage, setShowLandingMessage] = useState<boolean>(true);
   const [starCount, setStarCount] = useState<number | null>(null);
@@ -326,6 +328,7 @@ export default function HomePage() {
   };
 
   const handleDiffEditorMount = (editor: any) => {
+    diffEditorRef.current = editor;
     const modifiedEditor = editor.getModifiedEditor();
     const disposable = modifiedEditor.onDidChangeModelContent(() => {
       setDiffInput(modifiedEditor.getValue());
@@ -378,8 +381,35 @@ export default function HomePage() {
         }
       });
       diffDisposablesRef.current = [];
+      diffEditorRef.current = null;
     }
   }, [viewMode]);
+
+  // Update diff editor options dynamically when editorFontSize changes
+  useEffect(() => {
+    if (diffEditorRef.current) {
+      diffEditorRef.current.updateOptions({
+        fontSize: editorFontSize,
+        lineHeight: Math.round(editorFontSize * 1.02),
+      });
+    }
+  }, [editorFontSize]);
+
+  // Recalculate diff editor layout when custom fonts finish loading
+  useEffect(() => {
+    if (typeof window !== "undefined" && (document as any).fonts) {
+      const handleFontsLoaded = () => {
+        if (diffEditorRef.current) {
+          diffEditorRef.current.layout();
+        }
+      };
+      (document as any).fonts.ready.then(handleFontsLoaded);
+      (document as any).fonts.addEventListener("loadingdone", handleFontsLoaded);
+      return () => {
+        (document as any).fonts.removeEventListener("loadingdone", handleFontsLoaded);
+      };
+    }
+  }, []);
 
   // Clean up debounce timeout, diff editor listeners, and suppress Monaco Canceled errors on unmount
   useEffect(() => {
@@ -1549,8 +1579,8 @@ export default function HomePage() {
                         readOnly: false,
                         minimap: { enabled: false },
                         fontSize: editorFontSize,
-                        fontFamily: "var(--font-geist-mono), monospace",
-                        lineHeight: Math.round(editorFontSize * 1.57),
+                        fontFamily: "var(--font-mono), monospace",
+                        lineHeight: Math.round(editorFontSize * 1.02),
                         automaticLayout: true,
                         scrollbar: {
                           vertical: "visible",
@@ -2014,6 +2044,8 @@ export default function HomePage() {
         <span className="text-right">{visitorTime}</span>
       </footer>
 
+      {/* Premium developer notifications */}
+      <ToastContainer />
     </div>
   );
 }

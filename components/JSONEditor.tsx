@@ -28,6 +28,32 @@ export default function JSONEditor({ value, onChange, readOnly = false }: JSONEd
     };
   }, []);
 
+  // Update editor options dynamically when fontSize changes to ensure it updates instantly
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.updateOptions({
+        fontSize: editorFontSize,
+        lineHeight: Math.round(editorFontSize * 1.02),
+      });
+    }
+  }, [editorFontSize]);
+
+  // Recalculate editor layout when custom fonts finish loading
+  useEffect(() => {
+    if (typeof window !== "undefined" && (document as any).fonts) {
+      const handleFontsLoaded = () => {
+        if (editorRef.current) {
+          editorRef.current.layout();
+        }
+      };
+      (document as any).fonts.ready.then(handleFontsLoaded);
+      (document as any).fonts.addEventListener("loadingdone", handleFontsLoaded);
+      return () => {
+        (document as any).fonts.removeEventListener("loadingdone", handleFontsLoaded);
+      };
+    }
+  }, []);
+
   const handleEditorDidMount = (editor: any, monaco: Monaco) => {
     editorRef.current = editor;
 
@@ -123,8 +149,8 @@ export default function JSONEditor({ value, onChange, readOnly = false }: JSONEd
           readOnly,
           minimap: { enabled: false },
           fontSize: editorFontSize,
-          fontFamily: "var(--font-geist-mono), monospace",
-          lineHeight: Math.round(editorFontSize * 1.57),
+          fontFamily: "var(--font-mono), monospace",
+          lineHeight: Math.round(editorFontSize * 1.02),
           cursorBlinking: "smooth",
           cursorSmoothCaretAnimation: "on",
           smoothScrolling: true,
