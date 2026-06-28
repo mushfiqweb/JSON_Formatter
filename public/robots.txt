@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+Disallow: /share/
+
+# Explicitly allow AI search and crawler engines
+User-agent: GPTBot
+Allow: /
+Disallow: /share/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /share/
+
+User-agent: ClaudeBot
+Allow: /
+Disallow: /share/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /share/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /share/
+
+Sitemap: https://jsonobject.online/sitemap.xml
