@@ -162,6 +162,7 @@ export default function HomePage() {
   const [escapedLocal, setEscapedLocal] = useState("");
   const [visitorTime, setVisitorTime] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState("");
   const isOnline = useSyncExternalStore(
     onlineStore.subscribe,
     onlineStore.getSnapshot,
@@ -830,16 +831,32 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "WebApplication",
-            "name": "JSONObject.OnLine",
-            "url": "https://jsonobject.online",
-            "description": "Secure, client-side, zero-knowledge JSON validator, formatter, schema validator, type generator, and sharing utility platform.",
-            "applicationCategory": "DeveloperApplication",
-            "operatingSystem": "All",
-            "browserRequirements": "Requires JavaScript. Requires Web Crypto API.",
-          }),
+          __html: JSON.stringify([
+            {
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "JSONObject.OnLine",
+              "url": "https://jsonobject.online",
+              "description": "Secure, client-side, zero-knowledge JSON validator, formatter, schema validator, type generator, and sharing utility platform.",
+              "applicationCategory": "DeveloperApplication",
+              "operatingSystem": "All",
+              "browserRequirements": "Requires JavaScript. Requires Web Crypto API.",
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "url": "https://jsonobject.online",
+              "name": "JSONObject.OnLine",
+              "potentialAction": {
+                "@type": "SearchAction",
+                "target": {
+                  "@type": "EntryPoint",
+                  "urlTemplate": "https://jsonobject.online/?q={search_term_string}"
+                },
+                "query-input": "required name=search_term_string"
+              }
+            }
+          ]),
         }}
       />
       {/* Top Main Navigation Header */}
@@ -1915,12 +1932,37 @@ export default function HomePage() {
                 <span>My Shared Snippets</span>
               </h3>
               <button
-                onClick={() => setHistoryModalOpen(false)}
+                onClick={() => {
+                  setHistoryModalOpen(false);
+                  setHistorySearchQuery("");
+                }}
                 className="text-zinc-500 hover:text-white p-1 rounded-md transition-colors cursor-pointer"
               >
                 ✕
               </button>
             </div>
+
+            {/* History Search Bar */}
+            {historyData.length > 0 && (
+              <div className="px-6 py-3 border-b border-zinc-800 bg-zinc-950/40 flex items-center space-x-3.5 group">
+                <Search size={14} className="text-zinc-500 group-focus-within:text-cyan-400 transition-colors" />
+                <input
+                  type="text"
+                  value={historySearchQuery}
+                  onChange={(e) => setHistorySearchQuery(e.target.value)}
+                  placeholder="Search shared history by ID, views count, or date..."
+                  className="flex-grow bg-transparent border-none text-xs text-zinc-200 outline-none font-sans"
+                />
+                {historySearchQuery && (
+                  <button
+                    onClick={() => setHistorySearchQuery("")}
+                    className="text-zinc-500 hover:text-zinc-300 transition-colors text-xs cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {isHistoryLoading ? (
@@ -1936,59 +1978,85 @@ export default function HomePage() {
                   <p className="text-zinc-400 text-sm">You haven't shared any snippets from this browser yet.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
-                  {historyData.map((item) => (
-                    <div key={item.id} className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between transition-colors group">
+                (() => {
+                  const filtered = historyData.filter((item) => {
+                    const query = historySearchQuery.toLowerCase().trim();
+                    if (!query) return true;
+                    const idMatch = item.id.toLowerCase().includes(query);
+                    const dateMatch = new Date(item.local_created_at).toLocaleDateString().includes(query);
+                    const viewsMatch = `${item.views_count} views`.toLowerCase().includes(query);
+                    const langMatch = String(item.language || "").toLowerCase().includes(query);
+                    return idMatch || dateMatch || viewsMatch || langMatch;
+                  });
 
-                      <div className="mb-3 sm:mb-0">
-                        <div className="flex items-center space-x-2 mb-1.5">
-                          <span className="text-xs font-mono text-cyan-400 font-semibold">{item.id.split("-")[0]}...</span>
-                          <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
-                            {new Date(item.local_created_at).toLocaleDateString()}
-                          </span>
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="h-14 w-14 bg-zinc-900 border border-zinc-850 rounded-full flex items-center justify-center mb-4 text-zinc-500">
+                          <Search size={20} />
                         </div>
+                        <p className="text-zinc-400 text-sm font-semibold">No snippets match your search.</p>
+                        <p className="text-zinc-500 text-xs mt-1">Try another keyword or UUID chunk.</p>
+                      </div>
+                    );
+                  }
 
-                        <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500 font-mono">
-                          <div className="flex items-center space-x-1.5">
-                            <Eye size={12} className={item.views_count > 0 ? "text-emerald-400" : ""} />
-                            <span>{item.views_count} view{item.views_count !== 1 && 's'}</span>
+                  return (
+                    <div className="grid grid-cols-1 gap-3">
+                      {filtered.map((item) => (
+                        <div key={item.id} className="bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between transition-colors group">
+
+                          <div className="mb-3 sm:mb-0">
+                            <div className="flex items-center space-x-2 mb-1.5">
+                              <span className="text-xs font-mono text-cyan-400 font-semibold">{item.id.split("-")[0]}...</span>
+                              <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">
+                                {new Date(item.local_created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 text-[11px] text-zinc-500 font-mono">
+                              <div className="flex items-center space-x-1.5">
+                                <Eye size={12} className={item.views_count > 0 ? "text-emerald-400" : ""} />
+                                <span>{item.views_count} view{item.views_count !== 1 && 's'}</span>
+                              </div>
+                              <div className="flex items-center space-x-1.5">
+                                <Clock size={12} />
+                                <span>{item.last_viewed_at ? new Date(item.last_viewed_at).toLocaleString() : 'Never'}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-1.5">
-                            <Clock size={12} />
-                            <span>{item.last_viewed_at ? new Date(item.last_viewed_at).toLocaleString() : 'Never'}</span>
+
+                          <div className="flex items-center space-x-2">
+                            <a
+                              href={`/share/${item.id}`}
+                              onClick={(e) => {
+                                if (activeShareId === item.id) {
+                                  e.preventDefault();
+                                  setHistoryModalOpen(false);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded transition-colors cursor-pointer text-center"
+                            >
+                              View
+                            </a>
+                            <button
+                              onClick={() => {
+                                if (window.confirm("Permanently delete this snippet from the cloud?")) {
+                                  executeHistoryDelete(item.id, item.token);
+                                }
+                              }}
+                              className="px-2 py-1.5 border border-red-900/30 text-red-400 hover:bg-red-950/40 rounded transition-colors cursor-pointer"
+                              title="Delete from Cloud"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
+
                         </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <a
-                          href={`/share/${item.id}`}
-                          onClick={(e) => {
-                            if (activeShareId === item.id) {
-                              e.preventDefault();
-                              setHistoryModalOpen(false);
-                            }
-                          }}
-                          className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs rounded transition-colors cursor-pointer text-center"
-                        >
-                          View
-                        </a>
-                        <button
-                          onClick={() => {
-                            if (window.confirm("Permanently delete this snippet from the cloud?")) {
-                              executeHistoryDelete(item.id, item.token);
-                            }
-                          }}
-                          className="px-2 py-1.5 border border-red-900/30 text-red-400 hover:bg-red-950/40 rounded transition-colors cursor-pointer"
-                          title="Delete from Cloud"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  );
+                })()
               )}
             </div>
 

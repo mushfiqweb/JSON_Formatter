@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { HelpCircle, ArrowLeft, Lock, Cookie, ShieldCheck, Database, Braces } from "lucide-react";
+import { HelpCircle, ArrowLeft } from "lucide-react";
+import FAQSearchList from "@/components/FAQSearchList";
 
 export const metadata = {
   title: "Frequently Asked Questions | JSONObject Online",
@@ -8,8 +9,61 @@ export const metadata = {
 };
 
 export default function FAQPage() {
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is my JSON data sent to any server?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. All parsing, minification, tree exploration, and validation are performed 100% locally inside your browser. We leverage standard Web APIs and client-side scripts to run all operations. Your data never leaves your computer unless you explicitly choose to generate an encrypted sharing link."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does the encryption process for sharing work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "When you click the Share button, your JSON payload is encrypted directly in your browser using the industry-standard AES-GCM (256-bit) algorithm. The decryption key is generated locally and appended as a URL fragment (hash) after the # character. Because browser URL hash fragments are never transmitted to our servers (or any database), we host a zero-knowledge repository. Only the people you share the complete URL link with can decrypt and read the contents."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do you use cookies?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes, but we only use essential 'cookies' in the form of local browser persistence (localStorage and sessionStorage). These storage systems save your active JSON, format settings, editor themes, and viewport configurations locally. Without these local persistence cookies, formatting and parsing would be impossible, as your configuration state would reset on every single interaction or refresh. We never use cookies for marketing or tracking."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Where are the shared snippets stored?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "When shared, the encrypted payload is stored in a secure cloud database. Since it is fully encrypted on your machine before upload and contains no unencrypted keys, the stored payload is mathematically useless to us or anyone else. It is only accessible to those holding your exact unique URL containing the decryption hash."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How can I delete my shared snippets?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "When you create an encrypted snippet share link, your browser generates and saves an anonymous ownership token in its local history. You can view, search, and delete your shared snippets at any time directly through the local History explorer on the homepage."
+        }
+      }
+    ]
+  };
+
   return (
     <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] selection:bg-cyan-500/20 selection:text-white antialiased flex flex-col font-sans">
+      {/* JSON-LD Schema for Google Rich Snippets */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+
       {/* Decorative Glow Backgrounds */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-[120px] pointer-events-none" />
@@ -48,99 +102,8 @@ export default function FAQPage() {
           </p>
         </div>
 
-        {/* FAQ Grid list */}
-        <div className="space-y-6">
-          {/* Item 1 */}
-          <div className="p-6 rounded-2xl bg-zinc-900/30 backdrop-blur-md border border-zinc-800/80 hover:border-cyan-500/30 transition-all duration-300 shadow-xl shadow-black/10">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mt-1 flex-shrink-0">
-                <Braces size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-200 tracking-wide">
-                  Is my JSON data sent to any server?
-                </h2>
-                <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed">
-                  No. All parsing, minification, tree exploration, and validation are performed <strong>100% locally</strong> inside your browser. We leverage standard Web APIs and client-side scripts to run all operations. Your data never leaves your computer unless you explicitly choose to generate an encrypted sharing link.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Item 2 */}
-          <div className="p-6 rounded-2xl bg-zinc-900/30 backdrop-blur-md border border-zinc-800/80 hover:border-cyan-500/30 transition-all duration-300 shadow-xl shadow-black/10">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mt-1 flex-shrink-0">
-                <Lock size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-200 tracking-wide">
-                  How does the encryption process for sharing work?
-                </h2>
-                <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed">
-                  When you click the Share button, your JSON payload is encrypted directly in your browser using the industry-standard <strong>AES-GCM (256-bit)</strong> algorithm. 
-                </p>
-                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
-                  The decryption key is generated locally and appended as a <strong>URL fragment (hash) after the `#` character</strong>. Because browser URL hash fragments are never transmitted to our servers (or any database), we host a zero-knowledge repository. Only the people you share the complete URL link with can decrypt and read the contents.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Item 3 */}
-          <div className="p-6 rounded-2xl bg-zinc-900/30 backdrop-blur-md border border-zinc-800/80 hover:border-cyan-500/30 transition-all duration-300 shadow-xl shadow-black/10">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mt-1 flex-shrink-0">
-                <Cookie size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-200 tracking-wide">
-                  Do you use cookies?
-                </h2>
-                <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed">
-                  Yes, but we only use essential &quot;cookies&quot; in the form of local browser persistence (<code>localStorage</code> and <code>sessionStorage</code>). 
-                </p>
-                <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
-                  These storage systems save your active JSON, format settings, editor themes, and viewport configurations locally. Without these local persistence cookies, formatting and parsing would be impossible, as your configuration state would reset on every single interaction or refresh. We never use cookies for marketing or tracking.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Item 4 */}
-          <div className="p-6 rounded-2xl bg-zinc-900/30 backdrop-blur-md border border-zinc-800/80 hover:border-cyan-500/30 transition-all duration-300 shadow-xl shadow-black/10">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mt-1 flex-shrink-0">
-                <Database size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-200 tracking-wide">
-                  Where are the shared snippets stored?
-                </h2>
-                <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed">
-                  When shared, the encrypted payload is stored in a secure cloud database. Since it is fully encrypted on your machine before upload and contains no unencrypted keys, the stored payload is mathematically useless to us or anyone else. It is only accessible to those holding your exact unique URL containing the decryption hash.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Item 5 */}
-          <div className="p-6 rounded-2xl bg-zinc-900/30 backdrop-blur-md border border-zinc-800/80 hover:border-cyan-500/30 transition-all duration-300 shadow-xl shadow-black/10">
-            <div className="flex items-start space-x-3.5">
-              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mt-1 flex-shrink-0">
-                <ShieldCheck size={16} />
-              </div>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-200 tracking-wide">
-                  How can I delete my shared snippets?
-                </h2>
-                <p className="text-xs text-zinc-400 mt-2.5 leading-relaxed">
-                  When you create an encrypted snippet share link, your browser generates and saves an anonymous ownership token in its local history. You can view, search, and delete your shared snippets at any time directly through the local History explorer on the homepage.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Interactive Searchable FAQ list component */}
+        <FAQSearchList />
       </main>
 
       {/* Footer */}
@@ -150,3 +113,4 @@ export default function FAQPage() {
     </div>
   );
 }
+
